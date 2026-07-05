@@ -13,6 +13,51 @@ import time
 from pathlib import Path
 
 
+def _fmt_clock(seconds: float) -> str:
+    m, s = divmod(int(seconds), 60)
+    h, m = divmod(m, 60)
+    return f"{h}:{m:02d}:{s:02d}" if h else f"{m:02d}:{s:02d}"
+
+
+def ensure_readable(transcript_path: Path) -> Path:
+    """Write a human/agent-friendly .md rendering beside the JSON transcript.
+
+    The JSON stays canonical (the verbatim mechanism reads segment IDs from
+    it); the markdown exists so the archive is browsable by people and by
+    future transcript-querying agents (spec §10). Idempotent: skips if present.
+    """
+    out = transcript_path.with_suffix("").with_suffix(".md")
+    if out.exists():
+        return out
+    doc = json.loads(transcript_path.read_text(encoding="utf-8"))
+    m = doc["metadata"]
+    lines = [
+        f"# {m['title']}",
+        "",
+        f"- **Show:** {m['show']}",
+        f"- **Published:** {m['published']}",
+        f"- **Host/author (from feed):** {m['author'] or 'unknown'}",
+        f"- **Transcription:** Whisper {m['whisper_model']} "
+        f"(the .transcript.json beside this file is the verbatim ground truth)",
+        "",
+        "## Transcript",
+        "",
+    ]
+    para: list[str] = []
+    para_start = 0.0
+    for seg in doc["segments"]:
+        if not para:
+            para_start = seg["start"]
+        para.append(seg["text"])
+        if seg["end"] - para_start >= 60:  # new paragraph roughly every minute
+            lines += [f"**[{_fmt_clock(para_start)}]** " + " ".join(para), ""]
+            para = []
+    if para:
+        lines.append(f"**[{_fmt_clock(para_start)}]** " + " ".join(para))
+    out.write_text("\n".join(lines), encoding="utf-8")
+    return out
+
+
 def transcribe(audio_path: Path, episode, whisper_cfg: dict, out: Path, model_name: str | None = None) -> Path:
     """Transcribe one episode to `out` (a path inside the archive).
 

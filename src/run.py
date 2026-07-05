@@ -33,7 +33,7 @@ from state import (
     save_state,
 )
 from summarise import select_top_line, summarise
-from transcribe import transcribe
+from transcribe import ensure_readable, transcribe
 
 EPISODE_RETRY_CAP = 3
 
@@ -79,6 +79,7 @@ def process_episode(ep, cfg, archive, scratch, whisper_model) -> dict:
 
     tpath = archive / "transcripts" / slug(ep.show) / f"{ep.published}_{ep.stamp}.transcript.json"
     transcribe(audio, ep, cfg["whisper"], tpath, model_name=whisper_model)
+    ensure_readable(tpath)  # markdown companion for humans + future archive agents
     transcript = json.loads(tpath.read_text(encoding="utf-8"))
 
     ipath = tpath.with_suffix("").with_suffix(".items.json")
