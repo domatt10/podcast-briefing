@@ -38,11 +38,16 @@ the summarisation prompt).
 
 ## Status
 
-LIVE: scheduled daily at 05:37 UTC, one feed (How We Build Britain), monitored by
-Healthchecks.io (ping on success, /fail on breakage). Private archive receives
-transcripts + state via deploy key.
+LIVE, full roster: 13 feeds (spec §6), daily at 05:37 UTC, back catalogue seeded
+(4,584 episodes marked processed 2026-07-05 — only new episodes get processed).
+Monitored by Healthchecks.io (ping on success, /fail on breakage; missing ping
+alerts after grace). Three email shapes: briefing / fallback episode-list / quiet
+one-liner.
 
-Next (Phase 3): the full 13-feed roster with per-feed isolation and junk filtering,
-top-line selection across episodes, the fallback email path (raw episode list if
-synthesis fails), N-runs-failed feed flag in the footer, official-transcript-first
-for shows that publish one. Then Phase 4: a week of soak + the backfill decision.
+Phase 4 (soak) remaining:
+- Watch the first week of real briefings; iterate prompt + profile against them
+- Backfill decision: optionally transcribe ~a month of back-episodes (heavy
+  one-off burst — would need per-episode jobs or several manual runs)
+- Official-transcript-first (spec §7): not yet implemented — none of the roster
+  publishes machine-readable transcripts in-feed; revisit if one appears
+- Institutional-memory catch and tiering thresholds: expect iteration (App. B)
