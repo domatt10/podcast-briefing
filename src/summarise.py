@@ -154,6 +154,51 @@ def _validate(raw: str, n_segments: int) -> list[dict]:
     return items
 
 
+TOP_LINE_PROMPT = """You pick the top line of a daily signals briefing for this reader: an External Affairs & Policy Manager at The Crown Estate focused on offshore wind — he cares most about ministerial-altitude signals touching energy, the Treasury's mood on big capital projects, and the machinery of government.
+
+Below are today's significant items (one line each, with the show they came from). Choose the 2-4 MOST significant for this reader. Return JSON only: {{"top": [list of item numbers, most significant first]}}
+
+{candidates}
+"""
+
+
+def select_top_line(episodes: list[dict], gemini_cfg: dict) -> list[tuple[dict, dict]]:
+    """Pick the briefing's top line from all episodes' significant items.
+
+    Selection only — items are referenced by index, never rewritten. With four
+    or fewer candidates code picks them all and no model call happens; any
+    model failure falls back to the first four.
+    """
+    candidates = [
+        (item, ep["transcript"])
+        for ep in episodes
+        for item in ep["items"]
+        if item["tier"] == "significant"
+    ]
+    if len(candidates) <= 4:
+        return candidates
+
+    listing = "\n".join(
+        f"{i}. {item['why']} ({t['metadata']['show']})" for i, (item, t) in enumerate(candidates)
+    )
+    try:
+        client = genai.Client()
+        raw = _call_with_backoff(
+            client, gemini_cfg["model"], TOP_LINE_PROMPT.format(candidates=listing)
+        )
+        picks = json.loads(raw)["top"]
+        picks = [i for i in picks if isinstance(i, int) and 0 <= i < len(candidates)]
+        seen: list[int] = []
+        for i in picks:
+            if i not in seen:
+                seen.append(i)
+        if 2 <= len(seen) <= 4:
+            return [candidates[i] for i in seen]
+    except (errors.APIError, json.JSONDecodeError, KeyError, TypeError) as e:
+        print(f"[top-line] selection failed ({type(e).__name__}) - using first four")
+    return candidates[:4]
+
+
 def summarise(transcript: dict, gemini_cfg: dict) -> list[dict]:
     """One episode in, validated relevance items out (segment IDs, no quote text).
 

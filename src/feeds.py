@@ -6,10 +6,14 @@ quote came from.
 """
 
 import hashlib
+import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
 import feedparser
+
+# Trailer/teaser junk that isn't caught by the duration filter (spec App. B).
+JUNK_TITLE = re.compile(r"\b(trailer|teaser|preview|introducing|coming soon)\b", re.I)
 
 
 @dataclass
@@ -56,20 +60,27 @@ def _audio_url(entry) -> str | None:
     return None
 
 
-def fetch_episodes(feed_cfg: dict) -> list[Episode]:
+def fetch_episodes(feed_cfg: dict, filtering: dict | None = None) -> list[Episode]:
     """Fetch one feed and return its episodes, newest first.
 
-    Entries without an audio enclosure are skipped (they aren't episodes).
+    Skipped as junk: entries without an audio enclosure, trailer/teaser titles,
+    and anything shorter than min_duration_secs (unknown durations are kept).
     """
     parsed = feedparser.parse(feed_cfg["url"])
     if parsed.bozo and not parsed.entries:
         raise RuntimeError(f"Feed unreadable: {feed_cfg['name']} ({parsed.bozo_exception})")
 
+    min_secs = (filtering or {}).get("min_duration_secs", 0)
     show = feed_cfg["name"]
     episodes = []
     for entry in parsed.entries:
         audio = _audio_url(entry)
         if not audio:
+            continue
+        if JUNK_TITLE.search(entry.get("title", "")):
+            continue
+        duration = _parse_duration(entry.get("itunes_duration"))
+        if duration and duration < min_secs:
             continue
         published = ""
         if entry.get("published_parsed"):
@@ -81,7 +92,7 @@ def fetch_episodes(feed_cfg: dict) -> list[Episode]:
                 published=published,
                 audio_url=audio,
                 guid=entry.get("id"),
-                duration_secs=_parse_duration(entry.get("itunes_duration")),
+                duration_secs=duration,
                 author=entry.get("author") or parsed.feed.get("author", ""),
                 summary=entry.get("summary", ""),
             )

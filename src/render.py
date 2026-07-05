@@ -5,9 +5,11 @@ show / episode title / date / author from feed metadata, and its quote text +
 timestamp come from the transcript segments referenced by ID. The only model
 prose on display is the one-line relevance note ("why").
 
-Layout follows docs/example-briefing.md: two bands, five fixed sections in
-fixed order (so quiet days stay legible), tiered items, ★ for
-institutional-memory material.
+Layout follows docs/example-briefing.md: top line, two bands, five fixed
+sections in fixed order (so quiet days stay legible), tiered items, ★ for
+institutional-memory material. Three email shapes: the briefing, the fallback
+(raw episode list when synthesis failed — something always arrives, spec §9),
+and the quiet-day one-liner.
 """
 
 from html import escape
@@ -31,6 +33,8 @@ BANDS = [
     ),
 ]
 
+ENERGY_STREAMS = {"energy_desnz", "crown_estate"}
+
 
 def _fmt_ts(seconds: float) -> str:
     m, s = divmod(int(seconds), 60)
@@ -52,8 +56,37 @@ def _source_line(transcript: dict, ts: str) -> str:
     return f"{m['show']} · ep. “{m['title']}” · {who} · {m['published']} · {ts}"
 
 
-def render_briefing(date_label: str, episodes: list[dict]) -> tuple[str, str, str]:
+def _footer(footer_notes, text_parts: list, html_parts: list) -> None:
+    if not footer_notes:
+        return
+    text_parts += ["", "— Pipeline notes —"]
+    html_parts.append(
+        "<h3 style='font-size:13px;color:#a66;border-top:1px solid #ddd;"
+        "padding-top:8px;margin-top:20px'>Pipeline notes</h3><ul>"
+    )
+    for note in footer_notes:
+        text_parts.append(f"  ! {note}")
+        html_parts.append(f"<li style='font-size:13px;color:#a66'>{escape(note)}</li>")
+    html_parts.append("</ul>")
+
+
+def _wrap_html(date_label: str, body: str) -> str:
+    return (
+        "<div style='font-family:Georgia,serif;max-width:640px;margin:auto;"
+        "font-size:16px;line-height:1.5;color:#222'>"
+        f"<h1 style='font-size:22px'>Morning Signals — {escape(date_label)}</h1>"
+        f"{body}</div>"
+    )
+
+
+def render_briefing(
+    date_label: str,
+    episodes: list[dict],
+    top: list[tuple[dict, dict]] = (),
+    footer_notes: list[str] = (),
+) -> tuple[str, str, str]:
     """episodes: [{"transcript": ..., "items": [...]}, ...] (one per episode).
+    top: (item, transcript) pairs chosen by select_top_line.
 
     Returns (subject, plain_text, html).
     """
@@ -63,12 +96,22 @@ def render_briefing(date_label: str, episodes: list[dict]) -> tuple[str, str, st
             by_stream.setdefault(item["stream"], []).append((item, ep["transcript"]))
 
     subject = f"Morning Signals — {date_label}"
-    text_parts = [f"MORNING SIGNALS — {date_label}", ""]
-    html_parts = [
-        "<div style='font-family:Georgia,serif;max-width:640px;margin:auto;"
-        "font-size:16px;line-height:1.5;color:#222'>",
-        f"<h1 style='font-size:22px'>Morning Signals — {escape(date_label)}</h1>",
-    ]
+    text_parts: list[str] = []
+    html_parts: list[str] = []
+
+    if top:
+        text_parts += ["▶ TOP LINE", ""]
+        html_parts.append("<h2 style='font-size:16px'>▶ Top line</h2><ul>")
+        for item, transcript in top:
+            show = transcript["metadata"]["show"]
+            tag = "energy" if item["stream"] in ENERGY_STREAMS else "politics"
+            text_parts.append(f"- {item['why']} — {show} · ({tag})")
+            html_parts.append(
+                f"<li style='margin-bottom:6px'><b>{escape(item['why'])}</b> "
+                f"<span style='font-size:13px;color:#666'>— {escape(show)} · ({tag})</span></li>"
+            )
+        text_parts.append("")
+        html_parts.append("</ul>")
 
     n = 0
     for band, sections in BANDS:
@@ -117,5 +160,50 @@ def render_briefing(date_label: str, episodes: list[dict]) -> tuple[str, str, st
                 text_parts.append("")
                 html_parts.append("</ul>")
 
-    html_parts.append("</div>")
-    return subject, "\n".join(text_parts), "".join(html_parts)
+    _footer(footer_notes, text_parts, html_parts)
+    text = f"MORNING SIGNALS — {date_label}\n\n" + "\n".join(text_parts)
+    return subject, text, _wrap_html(date_label, "".join(html_parts))
+
+
+def render_fallback(
+    date_label: str,
+    failures: list[tuple],
+    footer_notes: list[str] = (),
+) -> tuple[str, str, str]:
+    """Everything-failed email: the raw new-episode list + transcript links
+    (spec §9) so something useful always arrives.
+
+    failures: (episode, transcript_url_or_None) pairs.
+    """
+    subject = f"Morning Signals — {date_label} (fallback: processing failed)"
+    text_parts = [
+        "Summarisation failed today, so here is the raw list of new episodes.",
+        "They will be retried tomorrow.",
+        "",
+    ]
+    html_parts = [
+        "<p>Summarisation failed today, so here is the raw list of new episodes. "
+        "They will be retried tomorrow.</p><ul>"
+    ]
+    for ep, url in failures:
+        line = f"{ep.show} — “{ep.title}” ({ep.published})"
+        text_parts.append(f"- {line}" + (f"\n  transcript: {url}" if url else ""))
+        html_parts.append(
+            f"<li style='margin-bottom:6px'>{escape(line)}"
+            + (f" — <a href='{escape(url)}'>transcript</a>" if url else "")
+            + "</li>"
+        )
+    html_parts.append("</ul>")
+    _footer(footer_notes, text_parts, html_parts)
+    text = f"MORNING SIGNALS — {date_label} (FALLBACK)\n\n" + "\n".join(text_parts)
+    return subject, text, _wrap_html(date_label, "".join(html_parts))
+
+
+def render_quiet(date_label: str, footer_notes: list[str] = ()) -> tuple[str, str, str]:
+    """Nothing-new day: a one-liner, as spec §9 allows."""
+    subject = f"Morning Signals — {date_label} (quiet)"
+    text_parts = ["Nothing new since the last run. All feeds checked."]
+    html_parts = ["<p>Nothing new since the last run. All feeds checked.</p>"]
+    _footer(footer_notes, text_parts, html_parts)
+    text = f"MORNING SIGNALS — {date_label}\n\n" + "\n".join(text_parts)
+    return subject, text, _wrap_html(date_label, "".join(html_parts))

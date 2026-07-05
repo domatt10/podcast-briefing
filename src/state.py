@@ -35,3 +35,39 @@ def mark_processed(state: dict, episode) -> None:
         "published": episode.published,
         "processed_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
     }
+
+
+# --- First-sight seeding -----------------------------------------------------
+# A feed's entire back catalogue is marked processed the first time we see it,
+# so joining a new feed never triggers a mass backfill (4,300+ episodes across
+# the roster). A deliberate backfill is a separate, manual decision (Phase 4).
+
+
+def is_seeded(state: dict, feed_name: str) -> bool:
+    return feed_name in state.setdefault("seeded_feeds", [])
+
+
+def mark_seeded(state: dict, feed_name: str) -> None:
+    state.setdefault("seeded_feeds", []).append(feed_name)
+
+
+# --- Failure tracking (spec §9: make failure loud) ---------------------------
+
+
+def record_feed_failure(state: dict, feed_name: str) -> int:
+    """Count consecutive failed runs for a feed; returns the new count."""
+    d = state.setdefault("feed_failures", {})
+    d[feed_name] = d.get(feed_name, 0) + 1
+    return d[feed_name]
+
+
+def clear_feed_failure(state: dict, feed_name: str) -> None:
+    state.setdefault("feed_failures", {}).pop(feed_name, None)
+
+
+def record_episode_failure(state: dict, episode) -> int:
+    """Count processing attempts for one episode; returns the new count.
+    The caller gives up (marks processed) after the retry cap."""
+    d = state.setdefault("episode_failures", {})
+    d[episode.key] = d.get(episode.key, 0) + 1
+    return d[episode.key]

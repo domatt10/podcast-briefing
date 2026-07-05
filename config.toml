@@ -23,9 +23,78 @@ smtp_port = 587
 [storage]
 data_dir = "data"   # scratch for downloaded audio (gitignored). Transcripts + state
                     # live in ARCHIVE_DIR (the private repo in CI; data/ locally).
+archive_repo_url = "https://github.com/domatt10/podcast-briefing-archive"
 
-# --- Podcast roster ---------------------------------------------------------
-# Thin slice: one feed. The full 13-show roster (spec §6) is added in Phase 3.
+[filtering]
+min_duration_secs = 300        # skip trailers/clips (spec App. B junk filtering)
+flag_feed_after_failures = 3   # consecutive failed runs before the footer flags a feed
+
+[behaviour]
+quiet_day_email = true         # send a one-liner on days with nothing new
+
+# --- Podcast roster (spec §6: 9 Westminster + 4 energy/infra) ----------------
+# All URLs verified 2026-07-05. Chopper's is deliberately the GB News/Acast
+# feed, NOT the defunct Telegraph one.
+
+[[feeds]]
+name = "Politics At Sam and Anne's"
+url = "https://feeds.captivate.fm/politics-at-sam-and-anne/"
+category = "politics"
+
+[[feeds]]
+name = "The Rest Is Politics"
+url = "https://feeds.megaphone.fm/GLT9190936013"
+category = "politics"
+
+[[feeds]]
+name = "The Rest Is Politics: Leading"
+url = "https://feeds.megaphone.fm/GLT9029505120"
+category = "politics"
+
+[[feeds]]
+name = "Westminster Insider"
+url = "https://feeds.megaphone.fm/ASD2104948920"
+category = "politics"
+
+[[feeds]]
+name = "Political Currency"
+url = "https://feeds.acast.com/public/shows/64fb2b0f977e5a001226cb16"
+category = "politics"
+
+[[feeds]]
+name = "Oh God, What Now?"
+url = "https://feeds.megaphone.fm/PMO6148729915"
+category = "politics"
+
+[[feeds]]
+name = "The Rundown (PoliticsHome)"
+url = "https://anchor.fm/s/1fe6adec/podcast/rss"
+category = "politics"
+
+[[feeds]]
+name = "Chopper's Political Podcast"
+url = "https://feeds.acast.com/public/shows/65f2f03e54a27c00160e744f"
+category = "politics"
+
+[[feeds]]
+name = "The Politics Show (New Statesman)"
+url = "https://feeds.acast.com/public/shows/6b2fc9ba-b9b7-4b7a-b980-e0024facd926"
+category = "politics"
+
+[[feeds]]
+name = "Energy Unplugged"
+url = "https://feed.podbean.com/aercommercial/feed.xml"
+category = "energy"
+
+[[feeds]]
+name = "The Offshore Wind Podcast"
+url = "https://rss.buzzsprout.com/1229717.rss"
+category = "energy"
+
+[[feeds]]
+name = "The reNEWS Podcast"
+url = "https://rss.buzzsprout.com/2559210.rss"
+category = "energy"
 
 [[feeds]]
 name = "How We Build Britain"

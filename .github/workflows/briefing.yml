@@ -26,7 +26,8 @@ permissions:
 jobs:
   briefing:
     runs-on: ubuntu-latest
-    timeout-minutes: 90    # a stuck job is killed, not left burning (spec §9)
+    timeout-minutes: 300   # room for several long episodes; a stuck job is
+                           # still killed, not left burning (spec §9)
     steps:
       - name: Check out code (public repo)
         uses: actions/checkout@v4
