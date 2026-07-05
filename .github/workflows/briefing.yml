@@ -11,9 +11,10 @@ name: Daily briefing
 
 on:
   workflow_dispatch:
-  # Enabled after the first verified manual cloud run:
-  # schedule:
-  #   - cron: "37 5 * * *"   # ~05:37 UTC, odd minute away from load spikes (spec §9)
+  schedule:
+    - cron: "37 5 * * *"   # ~05:37 UTC, odd minute away from load spikes (spec §9).
+                           # UTC only: that's 06:37 UK time during BST — still
+                           # comfortably before the ~8am read even if cron runs late.
 
 concurrency:
   group: briefing          # a late cron run + a manual run must never overlap
