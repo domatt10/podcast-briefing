@@ -38,6 +38,11 @@ the summarisation prompt).
 
 ## Status
 
-Phase 1 (thin end-to-end slice): one feed (How We Build Britain) → download → transcribe →
-summarise → email, with the state file. Full roster, five sections, tiering and archive
-come after the slice works.
+LIVE: scheduled daily at 05:37 UTC, one feed (How We Build Britain), monitored by
+Healthchecks.io (ping on success, /fail on breakage). Private archive receives
+transcripts + state via deploy key.
+
+Next (Phase 3): the full 13-feed roster with per-feed isolation and junk filtering,
+top-line selection across episodes, the fallback email path (raw episode list if
+synthesis fails), N-runs-failed feed flag in the footer, official-transcript-first
+for shows that publish one. Then Phase 4: a week of soak + the backfill decision.
