@@ -60,6 +60,10 @@ Signals and speculation, with the reasoning given for any prediction: rumours, m
 
 Standing rules: anything from a current or former energy/Treasury minister or SpAd is always in (identify by role, not name). Crown Estate lane items deserve detail. Predictions must carry their stated basis — put it in "why".
 
+# Style for "why" — plain English, spoken register
+
+Write each "why" the way you'd flag it to a colleague out loud: short sentences, plain words, active voice. Unpack dense ideas rather than compressing them. No corporate or policy-memo language — never "provides insider context", "signals a shift", "landscape", "stakeholders", "prioritisation direction". Say who did what and why the reader should care. ("The host is inside government right now, running GB Energy's £1bn supply-chain fund" beats "Reveals he is currently seconded into government to lead the design and delivery of...").
+
 # THE CARDINAL RULE — segment IDs only
 
 Point to passages by their segment ID numbers. NEVER copy, quote, or rewrite transcript text in your response — the exact wording is reconstituted from your IDs by the pipeline. "segment_ids" must be a consecutive run covering the passage (significant items typically 2-10 segments; fragments 1-2).
@@ -71,7 +75,7 @@ Point to passages by their segment ID numbers. NEVER copy, quote, or rewrite tra
     {{
       "tier": "significant",            // "significant" = worth a verbatim passage; "fragment" = one-line flag
       "stream": "energy_desnz",         // one of the five streams above
-      "why": "one line: why this matters to this reader; include the stated basis of any prediction",
+      "why": "one plain-English line (see style rule): why this matters to this reader; include the stated basis of any prediction",
       "segment_ids": [41, 42, 43],
       "institutional_memory": false
     }}
