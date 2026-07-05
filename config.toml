@@ -10,7 +10,9 @@ glossary = "DESNZ, NESO, SSEP, Ofgem, CfD, contracts for difference, allocation 
 
 [gemini]
 # Strongest free-tier model, as config because Google rotates/retires these (spec §7).
-model = "gemini-2.5-pro"
+# (2026-07: Pro models are paid-only — free tier is the Flash family. Verified
+# empirically: 2.5-pro returns 429 "limit: 0" on a free key.)
+model = "gemini-3.5-flash"
 fallback_model = "gemini-2.5-flash"
 
 [email]
