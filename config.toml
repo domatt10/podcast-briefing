@@ -1,0 +1,31 @@
+# All tunables live here. Secrets and email addresses do NOT — those come from
+# environment variables (.env locally, GitHub Secrets in CI), because this repo
+# will be public.
+
+[whisper]
+model = "medium"   # production accuracy target; override with "base"/"small" for fast local tests
+# Domain glossary seeded into Whisper's initial_prompt — cuts mis-hearings in the RAW
+# transcript so verbatim quotes stay faithful (spec §9). Extend freely.
+glossary = "DESNZ, NESO, SSEP, Ofgem, CfD, contracts for difference, allocation round, GB Energy, Great British Energy, the Crown Estate, seabed leasing, Celtic Sea, offshore wind, floating wind, interconnectors, REMA, zonal pricing, net zero, Ed Miliband, Rachel Reeves"
+
+[gemini]
+# Strongest free-tier model, as config because Google rotates/retires these (spec §7).
+model = "gemini-2.5-pro"
+fallback_model = "gemini-2.5-flash"
+
+[email]
+smtp_host = "smtp.gmail.com"
+smtp_port = 587
+# from/to addresses + app password come from env: BRIEFING_FROM, BRIEFING_TO, GMAIL_APP_PASSWORD
+
+[storage]
+data_dir = "data"            # local working area (gitignored): audio, transcripts, state
+state_file = "data/state.json"
+
+# --- Podcast roster ---------------------------------------------------------
+# Thin slice: one feed. The full 13-show roster (spec §6) is added in Phase 3.
+
+[[feeds]]
+name = "How We Build Britain"
+url = "https://feeds.buzzsprout.com/2608212.rss"
+category = "energy"

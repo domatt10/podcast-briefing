@@ -1,0 +1,16 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Secrets — local dev only; production uses GitHub Secrets. NEVER commit.
+.env
+
+# Local working data — audio, transcripts, state. Transcripts belong in the
+# PRIVATE repo, never this (future-public) one.
+data/
+
+# Audio anywhere else
+*.mp3
+*.m4a
+*.wav
