@@ -12,8 +12,8 @@ import os
 import sys
 from datetime import date
 
-from config import ROOT, load_config, data_dir
-from download import download_audio
+from config import archive_dir, load_config, data_dir
+from download import download_audio, slug
 from emailer import send_email
 from feeds import fetch_episodes
 from render import render_briefing
@@ -33,7 +33,8 @@ def main() -> None:
     cfg = load_config()
     feed_cfg = cfg["feeds"][0]  # thin slice: single feed
 
-    state_file = ROOT / cfg["storage"]["state_file"]
+    archive = archive_dir(cfg)
+    state_file = archive / "state.json"
     state = load_state(state_file)
 
     print(f"[feeds] fetching: {feed_cfg['name']}")
@@ -54,7 +55,10 @@ def main() -> None:
     audio = download_audio(latest, data_dir(cfg))
     print(f"[download] saved: {audio.name} ({audio.stat().st_size / (1 << 20):.1f} MB)")
 
-    transcript_file = transcribe(audio, latest, cfg["whisper"], model_name=args.whisper_model)
+    transcript_file = (
+        archive / "transcripts" / slug(latest.show) / f"{latest.published}_{latest.stamp}.transcript.json"
+    )
+    transcribe(audio, latest, cfg["whisper"], transcript_file, model_name=args.whisper_model)
 
     if not os.environ.get("GEMINI_API_KEY"):
         sys.exit(

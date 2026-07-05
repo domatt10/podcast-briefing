@@ -9,6 +9,8 @@ __pycache__/
 # Local working data — audio, transcripts, state. Transcripts belong in the
 # PRIVATE repo, never this (future-public) one.
 data/
+# The private repo's checkout in CI — must never be committed here.
+archive/
 
 # Audio anywhere else
 *.mp3

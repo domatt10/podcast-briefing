@@ -1,13 +1,12 @@
 """Download episode audio into the local data directory (gitignored)."""
 
-import hashlib
 import re
 from pathlib import Path
 
 import requests
 
 
-def _slug(text: str, max_len: int = 40) -> str:
+def slug(text: str, max_len: int = 40) -> str:
     return re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")[:max_len]
 
 
@@ -17,8 +16,7 @@ def download_audio(episode, data_dir: Path) -> Path:
     Filename embeds show, date and a hash of the dedupe key, so re-downloads
     of the same episode land on the same path.
     """
-    stamp = hashlib.sha256(episode.key.encode()).hexdigest()[:8]
-    dest = data_dir / f"{_slug(episode.show)}_{episode.published}_{stamp}.mp3"
+    dest = data_dir / f"{slug(episode.show)}_{episode.published}_{episode.stamp}.mp3"
     if dest.exists() and dest.stat().st_size > 0:
         return dest  # already downloaded — idempotence starts here
 

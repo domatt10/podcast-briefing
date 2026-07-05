@@ -13,17 +13,13 @@ import time
 from pathlib import Path
 
 
-def transcript_path(audio_path: Path) -> Path:
-    return audio_path.with_suffix(".transcript.json")
-
-
-def transcribe(audio_path: Path, episode, whisper_cfg: dict, model_name: str | None = None) -> Path:
-    """Transcribe one episode; writes <audio>.transcript.json and returns its path.
+def transcribe(audio_path: Path, episode, whisper_cfg: dict, out: Path, model_name: str | None = None) -> Path:
+    """Transcribe one episode to `out` (a path inside the archive).
 
     Skips work if the transcript already exists (idempotence).
     LOG DISCIPLINE: never print segment text — counts and timings only.
     """
-    out = transcript_path(audio_path)
+    out.parent.mkdir(parents=True, exist_ok=True)
     if out.exists():
         print(f"[transcribe] already done: {out.name}")
         return out

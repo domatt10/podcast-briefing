@@ -1,0 +1,110 @@
+# Daily signals briefing (spec §7, §9).
+#
+# PUBLIC LOGS: everything echoed here is world-readable. Steps print counts,
+# timings and status only — never transcript text, quotes, briefing content,
+# or email addresses.
+#
+# Triggers: manual + (once verified) schedule only. No pull_request trigger —
+# fork PRs can never reach the secrets.
+
+name: Daily briefing
+
+on:
+  workflow_dispatch:
+  # Enabled after the first verified manual cloud run:
+  # schedule:
+  #   - cron: "37 5 * * *"   # ~05:37 UTC, odd minute away from load spikes (spec §9)
+
+concurrency:
+  group: briefing          # a late cron run + a manual run must never overlap
+  cancel-in-progress: false
+
+permissions:
+  contents: write          # heartbeat run-log commit to this repo
+
+jobs:
+  briefing:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90    # a stuck job is killed, not left burning (spec §9)
+    steps:
+      - name: Check out code (public repo)
+        uses: actions/checkout@v4
+
+      - name: Check out archive (private repo, via deploy key)
+        env:
+          DEPLOY_KEY: ${{ secrets.ARCHIVE_DEPLOY_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/archive_key
+          chmod 600 ~/.ssh/archive_key
+          ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null
+          GIT_SSH_COMMAND="ssh -i ~/.ssh/archive_key -o IdentitiesOnly=yes" \
+            git clone --depth 1 git@github.com:domatt10/podcast-briefing-archive.git archive
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Cache Whisper model
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: whisper-models-v1   # bump the suffix to force a re-download
+
+      - name: Run pipeline
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          BRIEFING_FROM: ${{ secrets.BRIEFING_FROM }}
+          BRIEFING_TO: ${{ secrets.BRIEFING_TO }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          ARCHIVE_DIR: ${{ github.workspace }}/archive
+        run: python src/run.py
+
+      - name: Push archive updates (private repo)
+        run: |
+          cd archive
+          git config user.name "briefing-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "archive unchanged"
+          else
+            git commit -m "Archive update $(date -u +%Y-%m-%dT%H:%MZ)"
+            GIT_SSH_COMMAND="ssh -i ~/.ssh/archive_key -o IdentitiesOnly=yes" git push
+          fi
+
+      - name: Heartbeat commit (keeps the schedule alive; metadata only)
+        run: |
+          count=$(python -c "import json;print(len(json.load(open('archive/state.json'))['processed']))" 2>/dev/null || echo 0)
+          echo "$(date -u +%Y-%m-%dT%H:%MZ) ok episodes_processed_total=$count" >> run-log.txt
+          git config user.name "briefing-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add run-log.txt
+          git commit -m "Run log: $(date -u +%Y-%m-%d)"
+          git push
+
+      - name: Ping dead-man's-switch (full success only)
+        env:
+          HC_URL: ${{ secrets.HEALTHCHECK_URL }}
+        run: |
+          if [ -n "$HC_URL" ]; then
+            curl -fsS -m 10 --retry 3 "$HC_URL" > /dev/null
+          else
+            echo "HEALTHCHECK_URL not set - skipping"
+          fi
+
+      - name: Report failure to dead-man's-switch
+        if: failure()
+        env:
+          HC_URL: ${{ secrets.HEALTHCHECK_URL }}
+        run: |
+          if [ -n "$HC_URL" ]; then
+            curl -fsS -m 10 --retry 3 "$HC_URL/fail" > /dev/null
+          else
+            echo "HEALTHCHECK_URL not set - skipping"
+          fi

@@ -21,8 +21,8 @@ smtp_port = 587
 # from/to addresses + app password come from env: BRIEFING_FROM, BRIEFING_TO, GMAIL_APP_PASSWORD
 
 [storage]
-data_dir = "data"            # local working area (gitignored): audio, transcripts, state
-state_file = "data/state.json"
+data_dir = "data"   # scratch for downloaded audio (gitignored). Transcripts + state
+                    # live in ARCHIVE_DIR (the private repo in CI; data/ locally).
 
 # --- Podcast roster ---------------------------------------------------------
 # Thin slice: one feed. The full 13-show roster (spec §6) is added in Phase 3.

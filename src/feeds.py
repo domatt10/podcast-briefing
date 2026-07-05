@@ -5,6 +5,7 @@ item (spec §7): the model is never trusted to know which show or episode a
 quote came from.
 """
 
+import hashlib
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
@@ -27,6 +28,12 @@ class Episode:
         """Dedupe key for the processed-episode state. GUID when the feed
         provides one; title+date fallback because GUIDs can rotate (spec App. B)."""
         return self.guid or f"{self.show}|{self.title}|{self.published}"
+
+    @property
+    def stamp(self) -> str:
+        """Short stable hash of the key — used in filenames so audio,
+        transcript and items for one episode always line up."""
+        return hashlib.sha256(self.key.encode()).hexdigest()[:8]
 
 
 def _parse_duration(raw) -> int | None:
