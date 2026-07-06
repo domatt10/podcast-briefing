@@ -47,6 +47,9 @@ energy_keywords = [
 ]
 max_per_feed = 25   # per run — curation, not the firehose
 
+[politico]
+gmail_label = "Politico"   # the Gmail label the filter applies; read over IMAP
+
 [[news_feeds]]
 name = "BBC Politics"
 slug = "bbc-politics"

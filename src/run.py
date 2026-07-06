@@ -21,6 +21,7 @@ from download import download_audio, slug
 from emailer import send_email
 from feeds import fetch_episodes
 from news import fetch_news
+from politico import fetch_politico
 from render import render_briefing, render_fallback, render_quiet
 from state import (
     clear_feed_failure,
@@ -141,6 +142,12 @@ def main() -> None:
     except Exception as e:
         print(f"[news] stage failed ({type(e).__name__}) - continuing without news")
         footer.append("News fetch failed this run")
+    try:
+        n_pol = fetch_politico(cfg, archive)
+        print(f"[politico] {n_pol} newsletter(s) saved")
+    except Exception as e:
+        print(f"[politico] stage failed ({type(e).__name__}) - continuing")
+        footer.append("Politico fetch failed this run")
 
     if not os.environ.get("GEMINI_API_KEY"):
         sys.exit("[config] GEMINI_API_KEY is not set")
