@@ -12,9 +12,11 @@ name: Daily briefing
 on:
   workflow_dispatch:
   schedule:
-    - cron: "37 5 * * *"   # ~05:37 UTC, odd minute away from load spikes (spec §9).
-                           # UTC only: that's 06:37 UK time during BST — still
-                           # comfortably before the ~8am read even if cron runs late.
+    # GitHub's cron has NO delivery guarantee (observed 11h late, 2026-07-06),
+    # so two chances each morning. Idempotence makes the second run harmless:
+    # nothing new + a recent email = heartbeat and ping only, no duplicate mail.
+    - cron: "37 5 * * *"   # ~05:37 UTC (06:37 UK in summer) — primary
+    - cron: "7 6 * * *"    # ~06:07 UTC — backup if the primary never fires
 
 concurrency:
   group: briefing          # a late cron run + a manual run must never overlap

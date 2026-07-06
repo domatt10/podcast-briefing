@@ -31,6 +31,8 @@ flag_feed_after_failures = 3   # consecutive failed runs before the footer flags
 
 [behaviour]
 quiet_day_email = true         # send a one-liner on days with nothing new
+quiet_suppress_hours = 12      # ...unless an email already went out this recently
+                               # (the backup cron run must not double-mail)
 
 # --- Podcast roster (spec §6: 9 Westminster + 4 energy/infra) ----------------
 # All URLs verified 2026-07-05. Chopper's is deliberately the GB News/Acast

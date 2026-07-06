@@ -23,11 +23,13 @@ from feeds import fetch_episodes
 from render import render_briefing, render_fallback, render_quiet
 from state import (
     clear_feed_failure,
+    hours_since_last_email,
     is_processed,
     is_seeded,
     load_state,
     mark_processed,
     mark_seeded,
+    record_email_sent,
     record_episode_failure,
     record_feed_failure,
     save_state,
@@ -152,14 +154,18 @@ def main() -> None:
         subject, text, html = render_fallback(
             date_label, [(ep, transcript_url(cfg, ep)) for ep in failed], footer
         )
-    elif cfg["behaviour"]["quiet_day_email"]:
+    elif (
+        cfg["behaviour"]["quiet_day_email"]
+        and hours_since_last_email(state) >= cfg["behaviour"]["quiet_suppress_hours"]
+    ):
         subject, text, html = render_quiet(date_label, footer)
     else:
         save_state(state, state_file)
-        print("[email] quiet day - skipping email")
+        print("[email] quiet day (or recent email exists) - skipping email")
         return
 
     send_email(subject, text, html, cfg["email"])
+    record_email_sent(state)
 
     # Only after a successful send do briefed episodes count as done.
     for ep, _ in briefed:

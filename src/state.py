@@ -71,3 +71,20 @@ def record_episode_failure(state: dict, episode) -> int:
     d = state.setdefault("episode_failures", {})
     d[episode.key] = d.get(episode.key, 0) + 1
     return d[episode.key]
+
+
+# --- Email bookkeeping --------------------------------------------------------
+# With two cron entries a morning can legitimately run twice; this lets the
+# second run skip a redundant quiet-day email while real briefings always send.
+
+
+def record_email_sent(state: dict) -> None:
+    state["last_email_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+def hours_since_last_email(state: dict) -> float:
+    last = state.get("last_email_at")
+    if not last:
+        return float("inf")
+    delta = datetime.now(timezone.utc) - datetime.fromisoformat(last)
+    return delta.total_seconds() / 3600
