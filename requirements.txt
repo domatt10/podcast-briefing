@@ -3,3 +3,4 @@ requests
 faster-whisper
 google-genai
 python-dotenv
+beautifulsoup4

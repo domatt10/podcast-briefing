@@ -20,6 +20,7 @@ from config import archive_dir, data_dir, load_config
 from download import download_audio, slug
 from emailer import send_email
 from feeds import fetch_episodes
+from news import fetch_news
 from render import render_briefing, render_fallback, render_quiet
 from state import (
     clear_feed_failure,
@@ -132,6 +133,14 @@ def main() -> None:
                 footer.append(f"Gave up on “{ep.title}” ({ep.show}) after {tries} attempts")
             else:
                 failed.append(ep)
+
+    # News layer (agent brief A.1) — archive-only, never fatal to the briefing.
+    try:
+        n_news = fetch_news(cfg, archive)
+        print(f"[news] {n_news} new stor{'y' if n_news == 1 else 'ies'} saved")
+    except Exception as e:
+        print(f"[news] stage failed ({type(e).__name__}) - continuing without news")
+        footer.append("News fetch failed this run")
 
     if not os.environ.get("GEMINI_API_KEY"):
         sys.exit("[config] GEMINI_API_KEY is not set")
