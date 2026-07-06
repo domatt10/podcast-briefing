@@ -20,6 +20,7 @@ from config import archive_dir, data_dir, load_config
 from download import download_audio, slug
 from emailer import send_email
 from feeds import fetch_episodes
+from index import append_index_line
 from news import fetch_news
 from politico import fetch_politico
 from render import render_briefing, render_fallback, render_quiet
@@ -88,14 +89,17 @@ def process_episode(ep, cfg, archive, scratch, whisper_model) -> dict:
 
     ipath = tpath.with_suffix("").with_suffix(".items.json")
     if ipath.exists():
-        items = json.loads(ipath.read_text(encoding="utf-8"))
+        cached = json.loads(ipath.read_text(encoding="utf-8"))
+        # Files from before the guests/topics fields are a bare item list.
+        result = cached if isinstance(cached, dict) else {"items": cached, "guests": [], "topics": []}
         print(f"[summarise] already done: {ipath.name}")
     else:
-        items = summarise(transcript, cfg["gemini"])
-        ipath.write_text(json.dumps(items, ensure_ascii=False, indent=1), encoding="utf-8")
+        result = summarise(transcript, cfg["gemini"])
+        ipath.write_text(json.dumps(result, ensure_ascii=False, indent=1), encoding="utf-8")
+    items = result["items"]
     sig = sum(1 for i in items if i["tier"] == "significant")
     print(f"[summarise] '{ep.title}': {len(items)} item(s), {sig} significant")
-    return {"transcript": transcript, "items": items}
+    return {"transcript": transcript, **result}
 
 
 def transcript_url(cfg, ep) -> str | None:
@@ -184,8 +188,9 @@ def main() -> None:
     record_email_sent(state)
 
     # Only after a successful send do briefed episodes count as done.
-    for ep, _ in briefed:
+    for ep, result in briefed:
         mark_processed(state, ep)
+        append_index_line(archive, ep, result["guests"], result["topics"])
     save_state(state, state_file)
     print(f"[state] saved ({len(state['processed'])} processed total)")
 

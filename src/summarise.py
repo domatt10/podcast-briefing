@@ -71,6 +71,8 @@ Point to passages by their segment ID numbers. NEVER copy, quote, or rewrite tra
 # Output — JSON only, exactly this shape
 
 {{
+  "guests": ["Jane Doe"],               // guests actually on THIS episode, from the metadata/description/discussion; [] if hosts only; never guess
+  "topics": ["reshuffle", "Treasury restructure", "CfD budget"],   // 3-6 short tags for an episode index
   "items": [
     {{
       "tier": "significant",            // "significant" = worth a verbatim passage; "fragment" = one-line flag
@@ -82,7 +84,7 @@ Point to passages by their segment ID numbers. NEVER copy, quote, or rewrite tra
   ]
 }}
 
-Only include what you can ground in the segments below — omit anything you are unsure of rather than guessing. If nothing clears the bar, return {{"items": []}} — a quiet episode is a normal, correct answer.
+Only include what you can ground in the segments below — omit anything you are unsure of rather than guessing. If nothing clears the bar, return "items": [] — a quiet episode is a normal, correct answer (still fill guests and topics).
 
 # Transcript segments
 
@@ -129,8 +131,15 @@ def _call_with_backoff(client, model: str, prompt: str) -> str:
             time.sleep(wait)
 
 
-def _validate(raw: str, n_segments: int) -> list[dict]:
-    """Enforce the output contract; drop (and count) malformed items."""
+def _str_list(value) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [v.strip() for v in value if isinstance(v, str) and v.strip()]
+
+
+def _validate(raw: str, n_segments: int) -> dict:
+    """Enforce the output contract; drop (and count) malformed items.
+    Returns {"items": [...], "guests": [...], "topics": [...]}."""
     data = json.loads(raw)
     items, dropped = [], 0
     for item in data.get("items", []):
@@ -151,7 +160,11 @@ def _validate(raw: str, n_segments: int) -> list[dict]:
             dropped += 1
     if dropped:
         print(f"[summarise] dropped {dropped} malformed item(s)")
-    return items
+    return {
+        "items": items,
+        "guests": _str_list(data.get("guests")),
+        "topics": _str_list(data.get("topics")),
+    }
 
 
 TOP_LINE_PROMPT = """You pick the top line of a daily signals briefing for this reader: an External Affairs & Policy Manager at The Crown Estate focused on offshore wind — he cares most about ministerial-altitude signals touching energy, the Treasury's mood on big capital projects, and the machinery of government.
@@ -199,8 +212,9 @@ def select_top_line(episodes: list[dict], gemini_cfg: dict) -> list[tuple[dict, 
     return candidates[:4]
 
 
-def summarise(transcript: dict, gemini_cfg: dict) -> list[dict]:
-    """One episode in, validated relevance items out (segment IDs, no quote text).
+def summarise(transcript: dict, gemini_cfg: dict) -> dict:
+    """One episode in → {"items": [...], "guests": [...], "topics": [...]}.
+    Items carry segment IDs, never quote text.
 
     Tries the configured model, then the fallback model — Google reshuffles
     which models the free tier includes, and the briefing must survive that.
