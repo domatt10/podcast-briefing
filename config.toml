@@ -92,6 +92,54 @@ queries = [
     '(substation OR pylons OR "grid connection" OR "cable landfall") ("south Wales" OR Pembrokeshire OR Carmarthenshire OR "north Devon" OR Cornwall) ("offshore wind" OR "wind farm" OR tidal) -"Cornwall Insight"',
 ]
 
+[[constituency_geographies]]
+name = "East Anglia"
+slug = "east-anglia"
+bounds = "the Norfolk, Suffolk and Essex coasts and the southern North Sea: the offshore arrays (North Falls, Five Estuaries, East Anglia array, Sheringham Shoal, Dudgeon), the onshore cable/substation/pylon corridors (Norwich to Tilbury, Sea Link, East Anglia GREEN), and the Lowestoft/Great Yarmouth port cluster. 'Sea Link' here means the National Grid subsea connection, never transport."
+queries = [
+    '("offshore wind" OR "wind farm") (Norfolk OR Suffolk OR "East Anglia")',
+    '(pylons OR substation OR "cable route" OR "Sea Link" OR "Norwich to Tilbury" OR "East Anglia GREEN") (Norfolk OR Suffolk OR Essex)',
+    '("North Falls" OR "Five Estuaries" OR "Sheringham Shoal" OR "Dudgeon") (wind OR offshore)',
+    '(Lowestoft OR "Great Yarmouth") ("offshore wind" OR "wind farm" OR turbine)',
+]
+
+[[constituency_geographies]]
+name = "Humber, Lincolnshire & Yorkshire"
+slug = "humber"
+bounds = "the Humber estuary and the Lincolnshire/East Yorkshire coast: Dogger Bank (incl. Dogger Bank South), Outer Dowsing, the Hornsea projects (the wind farms, not just the town), Grimsby/Immingham/Hull ports and the Siemens blade factory, and the onshore substation corridors. 'Boston' means the Lincolnshire town."
+queries = [
+    '("offshore wind" OR "wind farm") (Humber OR Grimsby OR Immingham OR Lincolnshire OR Hull OR "East Yorkshire")',
+    '("Dogger Bank" OR "Outer Dowsing" OR "Hornsea Three" OR "Hornsea Four" OR "Hornsea Project") (wind OR offshore)',
+    '(substation OR pylons OR "cable route") (Lincolnshire OR "East Riding" OR Humber) ("offshore wind" OR "wind farm")',
+]
+
+[[constituency_geographies]]
+name = "Teesside & North East"
+slug = "teesside"
+bounds = "Teesside and the North East coast: Teesworks, Able, SeAH's monopile factory, South Bank Quay, Hartlepool, Blyth, Tyneside — mainly ports, manufacturing, jobs and supply chain for offshore wind."
+queries = [
+    '("offshore wind" OR "wind farm" OR turbine OR monopile) (Teesside OR Teesworks OR Hartlepool OR Blyth OR Tyneside OR Sunderland)',
+    '(SeAH OR "South Bank Quay" OR "Able Seaton") (wind OR offshore OR monopile)',
+]
+
+[[constituency_geographies]]
+name = "North West England (Irish Sea)"
+slug = "north-west"
+bounds = "the English side of the Irish Sea: Morgan and Morecambe offshore wind projects, the Walney extensions, Barrow-in-Furness as an O&M port, the Lancashire/Cumbria coast. 'Morgan' and 'Barrow' only count when clearly the wind project / the Cumbrian town. (Welsh Irish Sea projects belong to Celtic Sea & Welsh waters.)"
+queries = [
+    '("offshore wind" OR "wind farm") (Morecambe OR Walney OR "Barrow-in-Furness" OR Cumbria OR Lancashire OR "Irish Sea")',
+    '("Morgan and Morecambe" OR "Morgan offshore") (wind OR offshore)',
+]
+
+[[constituency_geographies]]
+name = "Scotland (low resolution)"
+slug = "scotland"
+bounds = "Scotland, deliberately at LOW resolution (an exception to the low-altitude rule): only major offshore-wind and tidal project milestones and significant national debates — ScotWind and INTOG majors, Berwick Bank, Green Volt, West of Orkney, MeyGen/Pentland Firth tidal. SKIP local Scottish planning minutiae, council rows and ScotWind leasing detail."
+queries = [
+    '("ScotWind" OR "Berwick Bank" OR "Green Volt" OR "West of Orkney" OR INTOG) (wind OR offshore)',
+    '("tidal energy" OR "tidal stream" OR MeyGen) (Scotland OR Orkney OR "Pentland Firth")',
+]
+
 # --- Podcast roster (spec §6: 9 Westminster + 4 energy/infra) ----------------
 # All URLs verified 2026-07-05. Chopper's is deliberately the GB News/Acast
 # feed, NOT the defunct Telegraph one.

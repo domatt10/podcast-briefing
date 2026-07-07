@@ -157,17 +157,22 @@ def select_items(geo: dict, items: list[dict], previous: str, gemini_cfg: dict) 
     models = [gemini_cfg["model"]]
     if gemini_cfg.get("fallback_model") and gemini_cfg["fallback_model"] not in models:
         models.append(gemini_cfg["fallback_model"])
-    raw, last_err = None, None
+    data, last_err = None, None
     for model in models:
         try:
             raw = _call_with_backoff(client, model, prompt)
+            try:
+                data = json.loads(raw)
+            except json.JSONDecodeError:
+                print(f"[cw] unparseable JSON from {model} - retrying once")
+                raw = _call_with_backoff(client, model, prompt)
+                data = json.loads(raw)
             break
         except Exception as e:
             print(f"[cw] {model} failed ({type(e).__name__})" + (" - trying fallback" if model != models[-1] else ""))
             last_err = e
-    if raw is None:
+    if data is None:
         raise last_err
-    data = json.loads(raw)
     selected = []
     for entry in data.get("items", []):
         ids = entry.get("ids")
@@ -257,7 +262,14 @@ def main() -> None:
 
         leads, briefs = [], []
         if fresh:
-            selected = select_items(geo, fresh, previous_context(state, cw["state_memory_weeks"]), cfg["gemini"])
+            try:
+                selected = select_items(geo, fresh, previous_context(state, cw["state_memory_weeks"]), cfg["gemini"])
+            except Exception as e:
+                # One geography's selection failure never sinks the digest;
+                # its items stay unmarked so next run retries them.
+                print(f"[cw] {geo['name']}: selection FAILED ({type(e).__name__}) - held for next run")
+                sections.append({"geo": geo["name"], "leads": [], "briefs": [], "raw_count": len(fresh)})
+                continue
             for entry in selected:
                 grouped = [fresh[i] for i in entry["ids"]]
                 (leads if entry["tier"] == "lead" else briefs).append((entry, grouped))
