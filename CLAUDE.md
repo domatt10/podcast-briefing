@@ -38,16 +38,20 @@ the summarisation prompt).
 
 ## Status
 
-LIVE, full roster: 13 feeds (spec §6), daily at 05:37 UTC, back catalogue seeded
-(4,584 episodes marked processed 2026-07-05 — only new episodes get processed).
-Monitored by Healthchecks.io (ping on success, /fail on breakage; missing ping
-alerts after grace). Three email shapes: briefing / fallback episode-list / quiet
-one-liner.
+Three products run from this repo, all LIVE:
 
-Phase 4 (soak) remaining:
-- Watch the first week of real briefings; iterate prompt + profile against them
-- Backfill decision: optionally transcribe ~a month of back-episodes (heavy
-  one-off burst — would need per-episode jobs or several manual runs)
-- Official-transcript-first (spec §7): not yet implemented — none of the roster
-  publishes machine-readable transcripts in-feed; revisit if one appears
-- Institutional-memory catch and tiering thresholds: expect iteration (App. B)
+1. **Daily briefing** (05:37 + 06:07 UTC crons): 13 feeds, back catalogue seeded,
+   news layer (BBC ×3 + Politico IMAP) feeding the archive, index.md lines.
+2. **Archive agent** (docs/archive-agent-brief.md): private archive + rich
+   CLAUDE.md there; ~90-day transcript backfill in progress via backfill.yml
+   (self-limiting chunks; collector always banks).
+3. **Constituency Watch** (docs/constituency-watch-brief.md): weekly local
+   offshore-wind/tidal digest, Mondays 04:47 + 05:27 UTC. ⚠️ Its prompt INVERTS
+   the altitude test — never wire profile.md into it. Slice geography: Celtic
+   Sea & Welsh waters. CW-2 (Planning Inspectorate DCO watch) deliberately
+   DEFERRED until an English DCO-heavy geography (East Anglia/Humber) joins —
+   Welsh projects route via NRW/Welsh consenting, not the PI register.
+
+Both email products are Healthchecks-monitored (cron-type checks; success ping +
+/fail ping). Still open: official-transcript-first (no roster show publishes
+one); institutional-memory + tiering iteration during soak (spec App. B).
