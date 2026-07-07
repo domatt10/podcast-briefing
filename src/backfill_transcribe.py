@@ -8,6 +8,7 @@ never sinks the chunk.
 
 import argparse
 import json
+import time
 from pathlib import Path
 
 from config import data_dir, load_config
@@ -22,7 +23,17 @@ def main() -> None:
     ap.add_argument("--chunk-id", type=int, required=True)
     ap.add_argument("--out", default="out")
     ap.add_argument("--whisper-model", help="override config model (local tests)")
+    ap.add_argument(
+        "--max-minutes",
+        type=int,
+        default=240,
+        help="time budget: stop STARTING new episodes past this, so finished work "
+        "is always uploaded before the job timeout can kill it (lesson of run "
+        "28849922586: 9 chunks timed out and lost ~6h of transcription each). "
+        "Leftovers are simply picked up by the next idempotent run.",
+    )
     args = ap.parse_args()
+    t0 = time.time()
 
     cfg = load_config()
     chunk = json.loads(Path(args.plan).read_text(encoding="utf-8"))["chunks"][args.chunk_id]
@@ -31,8 +42,16 @@ def main() -> None:
     scratch = data_dir(cfg)
 
     index_lines = []
-    done = failed = 0
+    done = failed = left = 0
     for spec in chunk:
+        elapsed_min = (time.time() - t0) / 60
+        if elapsed_min > args.max_minutes:
+            left = len(chunk) - done - failed
+            print(
+                f"[chunk {args.chunk_id}] time budget reached ({elapsed_min:.0f} min) - "
+                f"banking {done} episode(s), leaving {left} for the next run"
+            )
+            break
         ep = Episode(**spec)
         try:
             audio = download_audio(ep, scratch)
@@ -51,7 +70,7 @@ def main() -> None:
     (out / f"index-lines-{args.chunk_id}.txt").write_text(
         "\n".join(index_lines) + ("\n" if index_lines else ""), encoding="utf-8"
     )
-    print(f"[chunk {args.chunk_id}] done={done} failed={failed}")
+    print(f"[chunk {args.chunk_id}] done={done} failed={failed} left_for_next_run={left}")
 
 
 if __name__ == "__main__":
