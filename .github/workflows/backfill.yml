@@ -97,8 +97,11 @@ jobs:
 
   collect:
     needs: [plan, transcribe]
-    # Run even if some chunks failed — bank whatever succeeded.
-    if: always() && needs.plan.outputs.has_work == 'true' && needs.transcribe.result != 'cancelled'
+    # Run whenever there was work, no matter how transcribe ended — GitHub
+    # reports timed-out chunks as 'cancelled', which made an earlier guard
+    # skip collection and orphan 63 finished episodes (recovered manually).
+    # Bank whatever exists, always.
+    if: always() && needs.plan.outputs.has_work == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:

@@ -68,6 +68,30 @@ slug = "bbc-science-environment"
 url = "https://feeds.bbci.co.uk/news/science_and_environment/rss.xml"
 filter = "energy"
 
+# --- Constituency Watch (docs/constituency-watch-brief.md) -------------------
+# Weekly LOCAL digest, offshore wind + tidal only. NOTE THE ALTITUDE INVERSION:
+# this product keeps the ground-level detail the daily briefing bins. Its
+# prompt lives in src/constituency.py and never touches profile.md.
+
+[constituency]
+recency = "when:14d"            # appended to every query at fetch time
+max_leads_per_geography = 5     # cap so a noisy geography can't swamp the digest
+state_memory_weeks = 5          # how far back "previously reported" context reaches
+
+[[constituency_geographies]]
+name = "Celtic Sea & Welsh waters"
+slug = "celtic-sea"
+# Injected into the selection prompt so the model knows the territory's edges.
+bounds = "the Celtic Sea and all Welsh waters: south Wales coast, Pembrokeshire, Bristol Channel, north Devon and Cornwall, plus North Wales marine projects (Morlais, Mona, Morgan, Anglesey). England's east and south coasts and Scotland are OUT."
+# TOML literal strings (single quotes) so the Google News operators survive.
+queries = [
+    '"Celtic Sea" ("floating wind" OR "offshore wind" OR "wind farm")',
+    '("Port Talbot" OR "Milford Haven" OR "Pembroke Dock") ("floating wind" OR "offshore wind" OR "wind turbine" OR freeport)',
+    '("Gwynt Glas" OR "Erebus" OR "Valorous" OR "White Cross" OR "TwinHub" OR "Llyr") ("floating wind" OR "offshore wind")',
+    '("tidal energy" OR "tidal lagoon" OR "tidal stream" OR "tidal power") (Severn OR "Swansea Bay" OR "Bristol Channel" OR Pembrokeshire OR Cornwall OR Devon OR Wales)',
+    '(substation OR pylons OR "grid connection" OR "cable landfall") ("south Wales" OR Pembrokeshire OR Carmarthenshire OR "north Devon" OR Cornwall) ("offshore wind" OR "wind farm" OR tidal) -"Cornwall Insight"',
+]
+
 # --- Podcast roster (spec §6: 9 Westminster + 4 energy/infra) ----------------
 # All URLs verified 2026-07-05. Chopper's is deliberately the GB News/Acast
 # feed, NOT the defunct Telegraph one.
