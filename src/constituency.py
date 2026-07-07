@@ -128,7 +128,7 @@ def fetch_geography(geo: dict, recency: str) -> list[dict]:
 
 def load_cw_state(path) -> dict:
     if path.exists():
-        return json.loads(path.read_text(encoding="utf-8"))
+        return json.loads(path.read_text(encoding="utf-8-sig"))  # BOM-tolerant
     return {"seen": {}, "reported": []}
 
 
@@ -291,11 +291,22 @@ def main() -> None:
                 encoding="utf-8",
             )
 
+    # Backup-cron protection: a second run on the same day finds nothing new;
+    # don't send an empty "quiet" digest hours after the real one.
+    any_content = any(s["leads"] or s["briefs"] for s in sections)
+    last = state.get("last_digest_at")
+    recently_sent = last and (
+        datetime.now(timezone.utc) - datetime.fromisoformat(last)
+    ) < timedelta(days=3)
+
     subject, text, html = render_digest(date_label, sections)
     if args.no_email:
         print("\n" + text)
+    elif not any_content and recently_sent:
+        print("[cw] nothing new and a digest went out recently - skipping email")
     else:
         send_email(subject, text, html, cfg["email"])
+        state["last_digest_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
 
     state_path.parent.mkdir(parents=True, exist_ok=True)
     state_path.write_text(json.dumps(state, ensure_ascii=False, indent=1), encoding="utf-8")
