@@ -13,10 +13,12 @@ on:
   workflow_dispatch:
   schedule:
     # GitHub's cron has NO delivery guarantee (observed 11h late, 2026-07-06),
-    # so two chances each morning. Idempotence makes the second run harmless:
-    # nothing new + a recent email = heartbeat and ping only, no duplicate mail.
-    - cron: "37 5 * * *"   # ~05:37 UTC (06:37 UK in summer) — primary
-    - cron: "7 6 * * *"    # ~06:07 UTC — backup if the primary never fires
+    # so two chances each morning; the one-email-per-day gate makes extra runs
+    # harmless. Start EARLY: episodes transcribe sequentially, so a heavy
+    # multi-episode morning can take 4-6h (observed 6h15, 2026-07-07) — an
+    # 03:47 start still delivers a heavy day by ~10:00 and a normal day by 6am.
+    - cron: "47 3 * * *"   # ~03:47 UTC — primary
+    - cron: "27 4 * * *"   # ~04:27 UTC — backup if the primary never fires
 
 concurrency:
   group: briefing          # a late cron run + a manual run must never overlap
@@ -90,7 +92,11 @@ jobs:
           git config user.email "actions@users.noreply.github.com"
           git add run-log.txt
           git commit -m "Run log: $(date -u +%Y-%m-%d)"
-          git push
+          for i in 1 2 3; do
+            git push && exit 0
+            git pull --rebase
+          done
+          exit 1
 
       - name: Ping dead-man's-switch (full success only)
         env:
