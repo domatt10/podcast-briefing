@@ -82,9 +82,10 @@ def record_email_sent(state: dict) -> None:
     state["last_email_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
-def hours_since_last_email(state: dict) -> float:
+def sent_email_today(state: dict) -> bool:
+    """One briefing per calendar day (UTC): a cron that fires hours late after
+    a briefing already went out must not email again."""
     last = state.get("last_email_at")
     if not last:
-        return float("inf")
-    delta = datetime.now(timezone.utc) - datetime.fromisoformat(last)
-    return delta.total_seconds() / 3600
+        return False
+    return datetime.fromisoformat(last).astimezone(timezone.utc).date() == datetime.now(timezone.utc).date()

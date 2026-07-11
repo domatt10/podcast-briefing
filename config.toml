@@ -30,9 +30,9 @@ min_duration_secs = 300        # skip trailers/clips (spec App. B junk filtering
 flag_feed_after_failures = 3   # consecutive failed runs before the footer flags a feed
 
 [behaviour]
-quiet_day_email = true         # send a one-liner on days with nothing new
-quiet_suppress_hours = 12      # ...unless an email already went out this recently
-                               # (the backup cron run must not double-mail)
+quiet_day_email = true   # send a one-liner on days with nothing new
+                         # (one-email-per-day is enforced in code regardless:
+                         # a late-fired second run holds its episodes for tomorrow)
 
 # --- News layer (agent brief A.1): reported fact beside the speculation ------
 # Saved as text files to /news/ in the private archive. No LLM involved.

@@ -12,13 +12,11 @@ name: Daily briefing
 on:
   workflow_dispatch:
   schedule:
-    # GitHub's cron has NO delivery guarantee (observed 11h late, 2026-07-06),
-    # so two chances each morning; the one-email-per-day gate makes extra runs
-    # harmless. Start EARLY: episodes transcribe sequentially, so a heavy
-    # multi-episode morning can take 4-6h (observed 6h15, 2026-07-07) — an
-    # 03:47 start still delivers a heavy day by ~10:00 and a normal day by 6am.
-    - cron: "47 3 * * *"   # ~03:47 UTC — primary
-    - cron: "27 4 * * *"   # ~04:27 UTC — backup if the primary never fires
+    # The PRIMARY morning trigger is external (cron-job.org fires a
+    # workflow_dispatch at 03:47 UTC sharp — GitHub's own cron proved 6-11h
+    # late daily). This single entry is the backup if that service fails;
+    # whenever it fires, the one-email-per-day gate keeps it harmless.
+    - cron: "17 6 * * *"   # backup only — external trigger is the real schedule
 
 concurrency:
   group: briefing          # a late cron run + a manual run must never overlap

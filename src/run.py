@@ -26,7 +26,6 @@ from politico import fetch_politico
 from render import render_briefing, render_fallback, render_quiet
 from state import (
     clear_feed_failure,
-    hours_since_last_email,
     is_processed,
     is_seeded,
     load_state,
@@ -36,6 +35,7 @@ from state import (
     record_episode_failure,
     record_feed_failure,
     save_state,
+    sent_email_today,
 )
 from summarise import select_top_line, summarise
 from transcribe import ensure_readable, transcribe
@@ -165,6 +165,18 @@ def main() -> None:
     for ep in failed:
         footer.append(f"Couldn't process “{ep.title}” ({ep.show}) - will retry next run")
 
+    # ONE EMAIL PER DAY, hard rule: a cron that fires hours late after a
+    # briefing already went out must not send again. Work isn't wasted —
+    # transcripts/items are cached in the archive, and held episodes stay
+    # unmarked so tomorrow's briefing carries them.
+    if sent_email_today(state):
+        if briefed:
+            print(f"[email] already emailed today - holding {len(briefed)} episode(s) for tomorrow")
+        else:
+            print("[email] already emailed today - nothing more to send")
+        save_state(state, state_file)
+        return
+
     if briefed:
         episodes_data = [result for _, result in briefed]
         top = select_top_line(episodes_data, cfg["gemini"])
@@ -174,14 +186,11 @@ def main() -> None:
         subject, text, html = render_fallback(
             date_label, [(ep, transcript_url(cfg, ep)) for ep in failed], footer
         )
-    elif (
-        cfg["behaviour"]["quiet_day_email"]
-        and hours_since_last_email(state) >= cfg["behaviour"]["quiet_suppress_hours"]
-    ):
+    elif cfg["behaviour"]["quiet_day_email"]:
         subject, text, html = render_quiet(date_label, footer)
     else:
         save_state(state, state_file)
-        print("[email] quiet day (or recent email exists) - skipping email")
+        print("[email] quiet day - skipping email")
         return
 
     send_email(subject, text, html, cfg["email"])
