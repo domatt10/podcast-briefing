@@ -49,6 +49,9 @@ max_per_feed = 25   # per run — curation, not the firehose
 
 [politico]
 gmail_label = "Politico"   # the Gmail label the filter applies; read over IMAP
+lookback_days = 3          # daily fetch window — read status is irrelevant
+                           # (dedupe is by Message-ID filename), so Dom reading
+                           # Playbook before the run can't hide emails anymore
 
 [[news_feeds]]
 name = "BBC Politics"
