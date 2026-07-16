@@ -40,7 +40,7 @@ the summarisation prompt).
 
 Three products run from this repo, all LIVE:
 
-1. **Daily briefing** (05:37 + 06:07 UTC crons): 13 feeds, back catalogue seeded,
+1. **Daily briefing** (external trigger 03:47 UTC + backup cron): 18 feeds (expanded 2026-07-16), back catalogues seeded,
    news layer (BBC ×3 + Politico IMAP) feeding the archive, index.md lines.
 2. **Archive agent** (docs/archive-agent-brief.md): private archive + rich
    CLAUDE.md there; ~90-day transcript backfill in progress via backfill.yml
