@@ -84,6 +84,7 @@ def render_briefing(
     episodes: list[dict],
     top: list[tuple[dict, dict]] = (),
     footer_notes: list[str] = (),
+    in_print: list[dict] = (),
 ) -> tuple[str, str, str]:
     """episodes: [{"transcript": ..., "items": [...]}, ...] (one per episode).
     top: (item, transcript) pairs chosen by select_top_line.
@@ -159,6 +160,32 @@ def render_briefing(
                     )
                 text_parts.append("")
                 html_parts.append("</ul>")
+
+    if in_print:
+        # Reported news/analysis, visually separate from podcast speculation.
+        # Quotes are exact paragraphs reconstituted by code (in_print.py).
+        text_parts += ["——— IN PRINT ———", ""]
+        html_parts.append(
+            "<h2 style='font-size:13px;letter-spacing:2px;color:#888;"
+            "border-bottom:1px solid #ddd;padding-bottom:4px'>——— IN PRINT ———</h2>"
+        )
+        for item in in_print:
+            src = f"{item['source']} · “{item['title']}” · {item['published']}"
+            text_parts.append(f"• {item['why']}")
+            if item.get("quote"):
+                text_parts += [f'  “{item["quote"]}”']
+            text_parts += [f"  — {src}", f"  {item['url']}", ""]
+            html_parts.append(f"<p><b>{escape(item['why'])}</b></p>")
+            if item.get("quote"):
+                quote_html = escape(item["quote"]).replace("\n\n", "<br><br>")
+                html_parts.append(
+                    f"<blockquote style='border-left:3px solid #ccc;margin:8px 0 8px 8px;"
+                    f"padding-left:12px;color:#333'><i>“{quote_html}”</i></blockquote>"
+                )
+            html_parts.append(
+                f"<p style='font-size:13px;color:#666'>— {escape(item['source'])} · "
+                f"<a href='{escape(item['url'])}'>{escape(item['title'])}</a> · {escape(item['published'])}</p>"
+            )
 
     _footer(footer_notes, text_parts, html_parts)
     text = f"MORNING SIGNALS — {date_label}\n\n" + "\n".join(text_parts)

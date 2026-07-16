@@ -14,12 +14,13 @@ import argparse
 import json
 import os
 import sys
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 
 from config import archive_dir, data_dir, load_config
 from download import download_audio, slug
 from emailer import send_email
 from feeds import fetch_episodes
+from in_print import fetch_in_print
 from index import append_index_line
 from news import fetch_news
 from politico import fetch_politico
@@ -153,6 +154,14 @@ def main() -> None:
         print(f"[politico] stage failed ({type(e).__name__}) - continuing")
         footer.append("Politico fetch failed this run")
 
+    # "In print" — under-the-radar online news for the briefing email itself.
+    in_print_items, print_hashes = [], []
+    try:
+        in_print_items, print_hashes = fetch_in_print(cfg, archive, state)
+    except Exception as e:
+        print(f"[in-print] stage failed ({type(e).__name__}) - continuing without it")
+        footer.append("In-print scan failed this run")
+
     if not os.environ.get("GEMINI_API_KEY"):
         sys.exit("[config] GEMINI_API_KEY is not set")
     missing = [v for v in ("BRIEFING_FROM", "BRIEFING_TO", "GMAIL_APP_PASSWORD") if not os.environ.get(v)]
@@ -170,18 +179,23 @@ def main() -> None:
     # transcripts/items are cached in the archive, and held episodes stay
     # unmarked so tomorrow's briefing carries them.
     if sent_email_today(state):
-        if briefed:
-            print(f"[email] already emailed today - holding {len(briefed)} episode(s) for tomorrow")
+        if briefed or in_print_items:
+            print(
+                f"[email] already emailed today - holding {len(briefed)} episode(s) "
+                f"and {len(in_print_items)} print item(s) for tomorrow"
+            )
         else:
             print("[email] already emailed today - nothing more to send")
         save_state(state, state_file)
         return
 
-    if briefed:
+    if briefed or in_print_items:
         episodes_data = [result for _, result in briefed]
-        top = select_top_line(episodes_data, cfg["gemini"])
-        print(f"[render] top line: {len(top)} item(s)")
-        subject, text, html = render_briefing(date_label, episodes_data, top=top, footer_notes=footer)
+        top = select_top_line(episodes_data, cfg["gemini"]) if briefed else []
+        print(f"[render] top line: {len(top)} item(s), in-print: {len(in_print_items)}")
+        subject, text, html = render_briefing(
+            date_label, episodes_data, top=top, footer_notes=footer, in_print=in_print_items
+        )
     elif failed:
         subject, text, html = render_fallback(
             date_label, [(ep, transcript_url(cfg, ep)) for ep in failed], footer
@@ -200,6 +214,14 @@ def main() -> None:
     for ep, result in briefed:
         mark_processed(state, ep)
         append_index_line(archive, ep, result["guests"], result["topics"])
+    # All considered print candidates (selected or not) are done for good;
+    # prune the seen-store so it can't grow without bound.
+    now_iso = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    seen = state.setdefault("print_seen", {})
+    for h in print_hashes:
+        seen[h] = now_iso
+    horizon = (datetime.now(timezone.utc) - timedelta(days=45)).isoformat()
+    state["print_seen"] = {h: t for h, t in seen.items() if t >= horizon}
     save_state(state, state_file)
     print(f"[state] saved ({len(state['processed'])} processed total)")
 

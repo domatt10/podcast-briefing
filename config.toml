@@ -47,6 +47,46 @@ energy_keywords = [
 ]
 max_per_feed = 25   # per run — curation, not the firehose
 
+# --- "In print" (under-the-radar online news in the briefing email) ----------
+# Open-text sources only (extended quotes need full article bodies). BBC and
+# Politico stay archive-only by design — Dom reads those already.
+
+[in_print]
+max_items = 6
+lookback_hours = 30   # a run sees everything published since ~yesterday's run
+
+[[print_feeds]]
+name = "Carbon Brief"
+url = "https://www.carbonbrief.org/feed/"
+
+[[print_feeds]]
+name = "offshoreWIND.biz"
+url = "https://www.offshorewind.biz/feed/"
+
+[[print_feeds]]
+name = "ConservativeHome"
+url = "https://conservativehome.com/feed/"
+
+[[print_feeds]]
+name = "LabourList"
+url = "https://labourlist.org/feed/"
+
+[[print_feeds]]
+name = "Institute for Government"
+url = "https://www.instituteforgovernment.org.uk/rss.xml"
+
+[[print_feeds]]
+name = "UK in a Changing Europe"
+url = "https://ukandeu.ac.uk/feed/"
+
+[[print_feeds]]
+name = "The Conversation (UK politics)"
+url = "https://theconversation.com/uk/politics/articles.atom"
+
+[[print_feeds]]
+name = "Comment is Freed"
+url = "https://samf.substack.com/feed"
+
 [politico]
 gmail_label = "Politico"   # the Gmail label the filter applies; read over IMAP
 lookback_days = 3          # daily fetch window — read status is irrelevant
