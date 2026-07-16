@@ -143,9 +143,14 @@ queries = [
     '("tidal energy" OR "tidal stream" OR MeyGen) (Scotland OR Orkney OR "Pentland Firth")',
 ]
 
-# --- Podcast roster (spec §6: 9 Westminster + 4 energy/infra) ----------------
-# All URLs verified 2026-07-05. Chopper's is deliberately the GB News/Acast
-# feed, NOT the defunct Telegraph one.
+# --- Podcast roster ----------------------------------------------------------
+# Original spec §6 set (9 Westminster + 4 energy/infra), URLs verified
+# 2026-07-05; Chopper's is deliberately the GB News/Acast feed, NOT the defunct
+# Telegraph one. Expanded 2026-07-16 (Dom's request, feeds verified same day):
+# + The Rest Is Money (Treasury/fiscal stream), Inside Briefing (machinery of
+# government + institutional memory), Coffee House Shots (daily right-of-centre
+# read), Energy Voice Out Loud (North Sea / Scotland-low-res), ReEnergise
+# (ORE Catapult, supply chain — spec's own deferred candidate).
 
 [[feeds]]
 name = "Politics At Sam and Anne's"
@@ -210,4 +215,29 @@ category = "energy"
 [[feeds]]
 name = "How We Build Britain"
 url = "https://feeds.buzzsprout.com/2608212.rss"
+category = "energy"
+
+[[feeds]]
+name = "The Rest Is Money"
+url = "https://feeds.megaphone.fm/therestismoney"
+category = "politics"
+
+[[feeds]]
+name = "Inside Briefing"
+url = "https://feeds.megaphone.fm/PMO8430796457"
+category = "politics"
+
+[[feeds]]
+name = "Coffee House Shots"
+url = "https://access.acast.com/rss/68359028e1abc4be6b032cd1/default"
+category = "politics"
+
+[[feeds]]
+name = "Energy Voice Out Loud"
+url = "https://energyvoiceoutloud.podbean.com/feed.xml"
+category = "energy"
+
+[[feeds]]
+name = "The ReEnergise Podcast"
+url = "https://feeds.soundcloud.com/users/soundcloud:users:85057304/sounds.rss"
 category = "energy"
