@@ -124,6 +124,12 @@ def main() -> None:
     state_file = archive / "state.json"
     state = load_state(state_file)
 
+    # The backup trigger fires hours after the primary has already delivered.
+    # Bail out before doing an hour of work the one-email gate would discard.
+    if sent_email_today(state):
+        print("[pipeline] today's briefing already sent - nothing to do")
+        return
+
     new_eps, footer = gather_new_episodes(cfg, state)
     print(f"[pipeline] {len(new_eps)} new episode(s) to process")
 

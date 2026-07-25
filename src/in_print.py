@@ -40,6 +40,7 @@ Catch what would OTHERWISE SLIP UNDER HIS RADAR. He already reads Politico Playb
 - Group duplicate coverage of one story into a single pick (all its ids, best-sourced first).
 - Up to {max_items} picks, ranked most significant first. Fewer is fine. Zero is a normal answer.
 - Never invent facts not present in the headline/standfirst.
+- SPREAD YOUR PICKS. Party-political commentary is plentiful and tends to crowd out everything else; energy, industry and machinery-of-government pieces are rarer and worth more to this reader. Where an energy or infrastructure item is close in value to a party-political one, take the energy item. Avoid taking more than two picks from any single outlet.
 
 Return JSON only:
 {{"picks": [{{"ids": [3], "why": "one plain-English line, spoken register — what it says and why he should care"}}]}}
@@ -165,12 +166,20 @@ def fetch_in_print(cfg: dict, archive: Path, state: dict) -> tuple[list[dict], l
         SELECT_PROMPT.format(profile=profile, max_items=cfg["in_print"]["max_items"], listing=listing),
     )
 
-    results = []
-    for pick in data.get("picks", [])[: cfg["in_print"]["max_items"]]:
+    results, per_source = [], {}
+    for pick in data.get("picks", []):
+        if len(results) >= cfg["in_print"]["max_items"]:
+            break
         ids = pick.get("ids")
         if not (isinstance(ids, list) and ids and all(isinstance(i, int) and 0 <= i < len(candidates) for i in ids)):
             continue
         item = candidates[ids[0]]
+        # Hard backstop on the prompt's spread rule: no outlet takes over.
+        cap = cfg["in_print"].get("max_per_source", 2)
+        if per_source.get(item["source"], 0) >= cap:
+            print(f"[in-print] skipping extra item from {item['source']} (source cap {cap})")
+            continue
+        per_source[item["source"]] = per_source.get(item["source"], 0) + 1
         why = pick.get("why", "").strip() or item["title"]
         body = _ensure_body(item)
         quote = None
