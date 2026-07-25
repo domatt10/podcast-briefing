@@ -39,6 +39,18 @@ BANDS = [
 
 ENERGY_STREAMS = {"energy_desnz", "crown_estate"}
 
+# Per-lane colour coding (Dom's request). Deliberately desaturated, print-like
+# tones: dark enough to read as body text on white, distinct at a glance on a
+# phone, and they never carry meaning alone — every section is also labelled.
+STREAM_COLOURS = {
+    "energy_desnz": "#2f6b4f",        # green
+    "crown_estate": "#1f3a5f",        # navy
+    "treasury_fiscal": "#9b2c2c",     # red
+    "top_of_government": "#b1621a",   # orange
+    "parliamentary_colour": "#6b3f6e",  # plum
+}
+INPRINT_COLOUR = "#4a5763"  # slate — reported fact, deliberately cooler
+
 # --- design tokens ----------------------------------------------------------
 INK = "#1d2a35"
 BODY = "#2f3a44"
@@ -144,12 +156,12 @@ def _corroboration(others: list[tuple[dict, dict]]) -> str:
     return "Also on: " + " · ".join(bits)
 
 
-def _quote_html(quote: str) -> str:
+def _quote_html(quote: str, colour: str = ACCENT) -> str:
     paras = "".join(
         f"<p style='{S_QUOTE}'>{escape(p)}</p>" for p in quote.split("\n\n") if p.strip()
     )
     return (
-        f"<div style='background:{QUOTE_BG};border-left:3px solid {ACCENT};"
+        f"<div style='background:{QUOTE_BG};border-left:3px solid {colour};"
         f"padding:14px 16px 4px;margin:0 0 10px;border-radius:0 3px 3px 0'>{paras}</div>"
     )
 
@@ -184,23 +196,28 @@ def _wrap_html(date_label: str, body: str, preheader: str = "") -> str:
     )
 
 
-def _band_html(band: str) -> str:
+def _band_html(band: str, colour: str = INK) -> str:
+    """Band rules stay neutral so the lane colours below them do the work."""
     return (
         f"<div style='margin:30px 0 14px'>"
-        f"<div style='{S_LABEL};color:{ACCENT};border-bottom:2px solid {ACCENT};"
+        f"<div style='{S_LABEL};color:{colour};border-bottom:1px solid {RULE};"
         f"padding-bottom:5px'>{escape(band)}</div></div>"
     )
 
 
-def _section_html(heading: str, count: int) -> str:
+def _section_html(heading: str, count: int, colour: str) -> str:
+    """Coloured lane heading with a count chip, so a phone skim finds the lane
+    by colour and knows how much is in it before scrolling."""
     tally = (
-        f"<span style='font-family:{SANS};font-size:11px;font-weight:600;color:{FAINT}'>"
-        f"&nbsp;&nbsp;{count}</span>"
+        f"<span style='font-family:{SANS};font-size:10.5px;font-weight:700;color:#ffffff;"
+        f"background:{colour};border-radius:9px;padding:2px 7px;margin-left:8px;"
+        f"vertical-align:2px'>{count}</span>"
         if count
-        else ""
+        else f"<span style='font-family:{SANS};font-size:10.5px;font-weight:600;color:{FAINT};"
+        f"margin-left:8px;vertical-align:1px'>—</span>"
     )
     return (
-        f"<h2 style='font-family:{SANS};font-size:14px;font-weight:700;color:{INK};"
+        f"<h2 style='font-family:{SANS};font-size:14.5px;font-weight:700;color:{colour};"
         f"margin:20px 0 8px;letter-spacing:0.2px'>{escape(heading)}{tally}</h2>"
     )
 
@@ -253,12 +270,14 @@ def render_briefing(
         for item, transcript in top:
             show = transcript["metadata"]["show"]
             tag = "energy" if item["stream"] in ENERGY_STREAMS else "politics"
+            colour = STREAM_COLOURS.get(item["stream"], ACCENT)
             text_parts.append(f"- {item['why']} — {show} · ({tag})")
             html_parts.append(
-                f"<div style='margin:0 0 9px;padding-left:12px;border-left:2px solid {RULE}'>"
+                f"<div style='margin:0 0 9px;padding-left:12px;border-left:3px solid {colour}'>"
                 f"<span style='font-family:{SERIF};font-size:15.5px;color:{INK};"
                 f"line-height:1.45'>{escape(item['why'])}</span><br>"
-                f"<span style='{S_SOURCE}'>{escape(show)} · {tag}</span></div>"
+                f"<span style='{S_SOURCE}'>{escape(show)} · "
+                f"<span style='color:{colour};font-weight:600'>{tag}</span></span></div>"
             )
         text_parts.append("")
         html_parts.append("</div>")
@@ -268,8 +287,9 @@ def render_briefing(
         html_parts.append(_band_html(band))
         for stream, heading in sections:
             entries = by_stream.get(stream, [])
+            colour = STREAM_COLOURS.get(stream, ACCENT)
             text_parts.append(heading)
-            html_parts.append(_section_html(heading, len(entries)))
+            html_parts.append(_section_html(heading, len(entries), colour))
             if not entries:
                 text_parts += ["  Nothing notable today.", ""]
                 html_parts.append(
@@ -302,7 +322,7 @@ def render_briefing(
                 html_parts.append(
                     f"<div style='margin:0 0 22px'>{badge_html}"
                     f"<p style='{S_WHY}'>{escape(item['why'])}</p>"
-                    f"{_quote_html(quote)}"
+                    f"{_quote_html(quote, colour)}"
                     f"<div style='{S_SOURCE}'>{_source_html(transcript, ts)}</div>"
                     + (
                         f"<div style='{S_SOURCE};color:{FAINT};margin-top:2px'>{escape(also)}</div>"
@@ -324,7 +344,7 @@ def render_briefing(
                     also = _corroboration(story["others"])
                     text_parts.append(f"  - {item['why']} “{quote}” — {src} {also}".rstrip())
                     html_parts.append(
-                        f"<div style='margin:0 0 12px;padding-left:12px;border-left:2px solid {RULE}'>"
+                        f"<div style='margin:0 0 12px;padding-left:12px;border-left:2px solid {colour}'>"
                         f"<span style='font-family:{SERIF};font-size:15px;color:{INK};"
                         f"line-height:1.5'>{escape(item['why'])}</span> "
                         f"<span style='font-family:{SERIF};font-size:15px;color:{MUTED}'>"
@@ -339,7 +359,7 @@ def render_briefing(
         # Reported news/analysis, visually separate from podcast speculation.
         # Quotes are exact paragraphs reconstituted by code (in_print.py).
         text_parts += ["——— IN PRINT ———", ""]
-        html_parts.append(_band_html("In print"))
+        html_parts.append(_band_html("In print", INPRINT_COLOUR))
         for item in in_print:
             src = f"{item['source']} · “{item['title']}” · {item['published']}"
             text_parts.append(f"• {item['why']}")
@@ -348,10 +368,10 @@ def render_briefing(
             text_parts += [f"  — {src}", f"  {item['url']}", ""]
             html_parts.append(
                 f"<div style='margin:0 0 22px'><p style='{S_WHY}'>{escape(item['why'])}</p>"
-                + (_quote_html(item["quote"]) if item.get("quote") else "")
+                + (_quote_html(item["quote"], INPRINT_COLOUR) if item.get("quote") else "")
                 + f"<div style='{S_SOURCE}'>"
                 f"<strong style='color:{BODY};font-weight:600'>{escape(item['source'])}</strong> · "
-                f"<a href='{escape(item['url'])}' style='color:{ACCENT};text-decoration:none'>"
+                f"<a href='{escape(item['url'])}' style='color:{INPRINT_COLOUR};text-decoration:none'>"
                 f"{escape(item['title'])}</a> · {escape(item['published'])}</div></div>"
             )
 
