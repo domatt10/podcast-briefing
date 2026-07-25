@@ -206,19 +206,11 @@ def _band_html(band: str, colour: str = INK) -> str:
 
 
 def _section_html(heading: str, count: int, colour: str) -> str:
-    """Coloured lane heading with a count chip, so a phone skim finds the lane
-    by colour and knows how much is in it before scrolling."""
-    tally = (
-        f"<span style='font-family:{SANS};font-size:10.5px;font-weight:700;color:#ffffff;"
-        f"background:{colour};border-radius:9px;padding:2px 7px;margin-left:8px;"
-        f"vertical-align:2px'>{count}</span>"
-        if count
-        else f"<span style='font-family:{SANS};font-size:10.5px;font-weight:600;color:{FAINT};"
-        f"margin-left:8px;vertical-align:1px'>—</span>"
-    )
+    """Lane heading and its count together in the lane colour — 'Crown Estate
+    lane (2)' — so a phone skim finds the lane and its weight at a glance."""
     return (
-        f"<h2 style='font-family:{SANS};font-size:14.5px;font-weight:700;color:{colour};"
-        f"margin:20px 0 8px;letter-spacing:0.2px'>{escape(heading)}{tally}</h2>"
+        f"<h2 style='font-family:{SANS};font-size:15px;font-weight:700;color:{colour};"
+        f"margin:22px 0 8px;letter-spacing:0.2px'>{escape(heading)} ({count})</h2>"
     )
 
 
@@ -288,7 +280,7 @@ def render_briefing(
         for stream, heading in sections:
             entries = by_stream.get(stream, [])
             colour = STREAM_COLOURS.get(stream, ACCENT)
-            text_parts.append(heading)
+            text_parts.append(f"{heading} ({len(entries)})")
             html_parts.append(_section_html(heading, len(entries), colour))
             if not entries:
                 text_parts += ["  Nothing notable today.", ""]
