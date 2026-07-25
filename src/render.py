@@ -42,18 +42,74 @@ def _fmt_ts(seconds: float) -> str:
     return f"~{h}:{m:02d}:{s:02d}" if h else f"~{m:02d}:{s:02d}"
 
 
+PARA_GAP_SECS = 45  # break a long quote at roughly this cadence
+
+
 def reconstitute(item: dict, transcript: dict) -> tuple[str, str]:
     """Exact quote text + timestamp from the item's segment IDs — the verbatim
-    mechanism's final step. No model output involved."""
+    mechanism's final step. No model output involved.
+
+    Long passages are broken into paragraphs (~every PARA_GAP_SECS of speech)
+    so they don't arrive as a wall of text on a phone. Paragraphing is
+    whitespace only: not a word of the transcript is changed.
+    """
     segs = [transcript["segments"][i] for i in item["segment_ids"]]
-    quote = " ".join(s["text"] for s in segs)
-    return quote, _fmt_ts(segs[0]["start"])
+    paras, current, start = [], [], segs[0]["start"]
+    for s in segs:
+        current.append(s["text"])
+        if s["end"] - start >= PARA_GAP_SECS:
+            paras.append(" ".join(current))
+            current, start = [], s["end"]
+    if current:
+        paras.append(" ".join(current))
+    return "\n\n".join(paras), _fmt_ts(segs[0]["start"])
+
+
+def quote_words(item: dict, transcript: dict) -> int:
+    return sum(
+        len(transcript["segments"][i]["text"].split())
+        for i in item["segment_ids"]
+        if i < len(transcript["segments"])
+    )
+
+
+def build_stories(episodes: list[dict], groups: list[list[int]]) -> list[dict]:
+    """Turn per-episode items + cluster groups into deduped stories.
+
+    Each story: {"primary": (item, transcript), "others": [(item, transcript)]}.
+    The primary is the fullest treatment (significant beats fragment, then
+    longest quote) — the others become the corroboration line, which is also
+    the spec's attribution-density signal: one source or many.
+    """
+    flat = [(item, ep["transcript"]) for ep in episodes for item in ep["items"]]
+    stories = []
+    for group in groups:
+        members = [flat[i] for i in group if i < len(flat)]
+        if not members:
+            continue
+        members.sort(
+            key=lambda m: (m[0]["tier"] == "significant", quote_words(*m)), reverse=True
+        )
+        stories.append({"primary": members[0], "others": members[1:]})
+    return stories
 
 
 def _source_line(transcript: dict, ts: str) -> str:
     m = transcript["metadata"]
     who = m["author"] or "hosts"
     return f"{m['show']} · ep. “{m['title']}” · {who} · {m['published']} · {ts}"
+
+
+def _corroboration(others: list[tuple[dict, dict]]) -> str:
+    """The attribution-density line (spec §3): who else carried this story.
+    Empty for single-source items — so a bare item visibly means one source."""
+    if not others:
+        return ""
+    bits = []
+    for item, transcript in others:
+        _, ts = reconstitute(item, transcript)
+        bits.append(f"{transcript['metadata']['show']} ({ts})")
+    return "Also on: " + " · ".join(bits)
 
 
 def _footer(footer_notes, text_parts: list, html_parts: list) -> None:
@@ -81,24 +137,40 @@ def _wrap_html(date_label: str, body: str) -> str:
 
 def render_briefing(
     date_label: str,
-    episodes: list[dict],
+    stories: list[dict],
     top: list[tuple[dict, dict]] = (),
     footer_notes: list[str] = (),
     in_print: list[dict] = (),
 ) -> tuple[str, str, str]:
-    """episodes: [{"transcript": ..., "items": [...]}, ...] (one per episode).
+    """stories: [{"primary": (item, transcript), "others": [...]}] from
+    build_stories — one entry per story, deduped across episodes.
     top: (item, transcript) pairs chosen by select_top_line.
 
     Returns (subject, plain_text, html).
     """
-    by_stream: dict[str, list[tuple[dict, dict]]] = {}
-    for ep in episodes:
-        for item in ep["items"]:
-            by_stream.setdefault(item["stream"], []).append((item, ep["transcript"]))
+    by_stream: dict[str, list[dict]] = {}
+    for story in stories:
+        by_stream.setdefault(story["primary"][0]["stream"], []).append(story)
 
     subject = f"Morning Signals — {date_label}"
     text_parts: list[str] = []
     html_parts: list[str] = []
+
+    # Orientation: what you're about to read, before you commit to it.
+    shows = {s["primary"][1]["metadata"]["show"] for s in stories}
+    for s in stories:
+        shows.update(t["metadata"]["show"] for _, t in s["others"])
+    words = sum(quote_words(*s["primary"]) for s in stories)
+    n_sig = sum(1 for s in stories if s["primary"][0]["tier"] == "significant")
+    if stories:
+        line = (
+            f"{len(stories)} stories ({n_sig} in full) from {len(shows)} shows"
+            f"{f' · {len(in_print)} in print' if in_print else ''} · ~{max(1, round(words / 200))} min"
+        )
+        text_parts += [line, ""]
+        html_parts.append(
+            f"<p style='font-size:13px;color:#888;margin-top:-8px'>{escape(line)}</p>"
+        )
 
     if top:
         text_parts += ["▶ TOP LINE", ""]
@@ -131,32 +203,44 @@ def render_briefing(
                 html_parts.append("<p style='color:#888'><i>Nothing notable today.</i></p>")
                 continue
 
-            significant = [(i, t) for i, t in entries if i["tier"] == "significant"]
-            fragments = [(i, t) for i, t in entries if i["tier"] == "fragment"]
+            significant = [s for s in entries if s["primary"][0]["tier"] == "significant"]
+            fragments = [s for s in entries if s["primary"][0]["tier"] != "significant"]
 
-            for item, transcript in significant:
+            for story in significant:
+                item, transcript = story["primary"]
                 quote, ts = reconstitute(item, transcript)
                 star = "★ Worth remembering — institutional memory. " if item["institutional_memory"] else ""
                 src = _source_line(transcript, ts)
-                text_parts += [f"  {star}{item['why']}", f"    “{quote}”", f"    — {src}", ""]
+                also = _corroboration(story["others"])
+                quote_html = escape(quote).replace("\n\n", "</p><p style='margin:8px 0'>")
+                text_parts += [f"  {star}{item['why']}", f"    “{quote}”", f"    — {src}"]
+                if also:
+                    text_parts.append(f"    {also}")
+                text_parts.append("")
                 html_parts.append(
                     f"<p><b>{escape(star)}{escape(item['why'])}</b></p>"
                     f"<blockquote style='border-left:3px solid #ccc;margin:8px 0 8px 8px;"
-                    f"padding-left:12px;color:#333'><i>“{escape(quote)}”</i></blockquote>"
-                    f"<p style='font-size:13px;color:#666'>— {escape(src)}</p>"
+                    f"padding-left:12px;color:#333'><i><p style='margin:8px 0'>“{quote_html}”</p></i></blockquote>"
+                    f"<p style='font-size:13px;color:#666'>— {escape(src)}"
+                    + (f"<br><span style='color:#888'>{escape(also)}</span>" if also else "")
+                    + "</p>"
                 )
 
             if fragments:
                 text_parts.append("  Fragments:")
                 html_parts.append("<p style='margin-bottom:2px'><i>Fragments:</i></p><ul style='margin-top:2px'>")
-                for item, transcript in fragments:
+                for story in fragments:
+                    item, transcript = story["primary"]
                     quote, ts = reconstitute(item, transcript)
                     src = _source_line(transcript, ts)
-                    text_parts.append(f"  - {item['why']} “{quote}” — {src}")
+                    also = _corroboration(story["others"])
+                    text_parts.append(f"  - {item['why']} “{quote}” — {src} {also}".rstrip())
                     html_parts.append(
                         f"<li style='font-size:14px;margin-bottom:6px'>{escape(item['why'])} "
                         f"<i>“{escape(quote)}”</i> "
-                        f"<span style='font-size:12px;color:#666'>— {escape(src)}</span></li>"
+                        f"<span style='font-size:12px;color:#666'>— {escape(src)}"
+                        + (f" {escape(also)}" if also else "")
+                        + "</span></li>"
                     )
                 text_parts.append("")
                 html_parts.append("</ul>")

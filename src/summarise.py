@@ -60,13 +60,41 @@ Signals and speculation, with the reasoning given for any prediction: rumours, m
 
 Standing rules: anything from a current or former energy/Treasury minister or SpAd is always in (identify by role, not name). Crown Estate lane items deserve detail. Predictions must carry their stated basis — put it in "why".
 
+# THE CORE-PATCH EXEMPTION — read this before applying the altitude test
+
+The reader's relevance test has two axes, altitude and proximity; apply them TOGETHER rather than as two separate hurdles. In his CORE ring — offshore/marine energy (offshore wind, floating wind, tidal, CCS, oil & gas transition) and the grid/system layer (NESO, SSEP, connections reform, zonal/REMA pricing, transmission charging, allocation rounds/CfD, seabed leasing, ports and supply chain) — the altitude bar is LOWER: he does not need it to have crossed a minister's desk, and specialist detail is welcome where general political shows can't give it to him.
+
+But lower is not zero. The test that replaces altitude here is: **does it bear on whether and how projects actually get built, or on the commercial and political framework around them?** So IN: leasing and route-to-market, grid access and queues, the investment climate, government or regulator decisions and appetite, supply-chain capacity as a constraint on deployment, project timelines slipping or accelerating, who is lobbying whom.
+
+OUT, even on his core topics: industry operational practice (training standards, HSE, crew transfer, vessel logistics), technical methodology, corporate and product announcements, conference throat-clearing, and general "the transition is important" commentary. An energy-industry podcast will be full of this — it is the industry talking shop, not signal. A specialist episode with no policy or commercial bearing is a legitimately EMPTY episode; say so by returning no items.
+
+The altitude test bites hardest OUTSIDE the core ring: for Westminster process, party management and non-energy policy, keep requiring that it crosses a minister's desk or changes a decision-maker's mind.
+
+# Tiering — a hierarchy, not a rating. Default to FRAGMENT.
+
+Start every item as a fragment and promote it only if it clears a high bar. Roughly TWO THIRDS of your items should be fragments; a typical episode yields AT MOST 1-3 significant items, often zero.
+
+Promote to "significant" only for: a genuinely new signal or shift, a prediction with its reasoning spelled out, an explicit disagreement between sources, substantive core-patch (offshore/grid) discussion, or an insider explaining how something really works.
+
+Keep as "fragment": passing mentions, restatements of known news, routine reported fact, single-line colour, general commentary and opinion — however interesting. If you find yourself making a third or fourth item significant in one episode, it almost certainly belongs in the fragment tier.
+
+# Volume ceiling
+
+Return AT MOST 6 items from any one episode, and usually far fewer. You are selecting the signals a busy reader must not miss, not summarising the episode. If you have more than 6 candidates, keep only the strongest — and if an episode genuinely contains nothing that clears the bar, return no items at all. Zero is a common and correct answer, especially for specialist industry episodes.
+
 # Style for "why" — plain English, spoken register
 
 Write each "why" the way you'd flag it to a colleague out loud: short sentences, plain words, active voice. Unpack dense ideas rather than compressing them. No corporate or policy-memo language — never "provides insider context", "signals a shift", "landscape", "stakeholders", "prioritisation direction". Say who did what and why the reader should care. ("The host is inside government right now, running GB Energy's £1bn supply-chain fund" beats "Reveals he is currently seconded into government to lead the design and delivery of...").
 
 # THE CARDINAL RULE — segment IDs only
 
-Point to passages by their segment ID numbers. NEVER copy, quote, or rewrite transcript text in your response — the exact wording is reconstituted from your IDs by the pipeline. "segment_ids" must be a consecutive run covering the passage (significant items typically 2-10 segments; fragments 1-2).
+Point to passages by their segment ID numbers. NEVER copy, quote, or rewrite transcript text in your response — the exact wording is reconstituted from your IDs by the pipeline. "segment_ids" must be a consecutive run covering the passage.
+
+"segment_ids" MUST be an unbroken consecutive run — [41, 42, 43], never [41, 43, 45]. A quote is continuous speech; skipping segments would splice together things that were never said together. If the passage you want has irrelevant chat in the middle, either pick the tighter consecutive run that carries the point, or return two separate items.
+
+Length: the reader is a fast reader who prefers richness, so there is no hard ceiling — give a significant passage the room it genuinely needs (commonly 3-12 segments, more when the material really warrants it). Start where the point starts and end where it lands.
+
+Choose the passage where the point is made most CLEANLY. These are unscripted conversations: much of the talk is circling, filler and thinking aloud. Where a speaker makes the same point twice, take the tighter telling; prefer the run where they say the thing to the run where they are working up to it. A short, sharp passage beats a long, meandering one carrying the same content. Fragments should be SHORT — 1-3 segments, just enough to carry the line.
 
 # Output — JSON only, exactly this shape
 
@@ -75,7 +103,7 @@ Point to passages by their segment ID numbers. NEVER copy, quote, or rewrite tra
   "topics": ["reshuffle", "Treasury restructure", "CfD budget"],   // 3-6 short tags for an episode index
   "items": [
     {{
-      "tier": "significant",            // "significant" = worth a verbatim passage; "fragment" = one-line flag
+      "tier": "significant",            // see tiering rule above: "significant" = the few items deserving a full verbatim passage; "fragment" = everything else (a flag plus a short verbatim snippet)
       "stream": "energy_desnz",         // one of the five streams above
       "why": "one plain-English line (see style rule): why this matters to this reader; include the stated basis of any prediction",
       "segment_ids": [41, 42, 43],
@@ -131,6 +159,40 @@ def _call_with_backoff(client, model: str, prompt: str) -> str:
             time.sleep(wait)
 
 
+MAX_SIGNIFICANT_PER_EPISODE = 3
+FRAGMENT_SEGMENTS = 3
+CORE_STREAMS = ("crown_estate", "energy_desnz")
+
+
+def _enforce_tier_budget(items: list[dict]) -> list[dict]:
+    """Cap full-quote items per episode, in code.
+
+    The prompt asks for restraint and mostly gets it, but it drifts badly on
+    some days (33 of 36 items came back "significant" on 2026-07-24), which
+    flattens the hierarchy the reader skims by. Priority when choosing which
+    keep the full treatment: his core patch first, then institutional memory,
+    then the longest passages. Demoted items stay verbatim — their segment run
+    is simply trimmed to a fragment-sized opening.
+    """
+    sig = [i for i in items if i["tier"] == "significant"]
+    if len(sig) <= MAX_SIGNIFICANT_PER_EPISODE:
+        return items
+    ranked = sorted(
+        sig,
+        key=lambda i: (
+            i["stream"] in CORE_STREAMS,
+            i.get("institutional_memory", False),
+            len(i["segment_ids"]),
+        ),
+        reverse=True,
+    )
+    for item in ranked[MAX_SIGNIFICANT_PER_EPISODE:]:
+        item["tier"] = "fragment"
+        item["segment_ids"] = item["segment_ids"][:FRAGMENT_SEGMENTS]
+    print(f"[summarise] tier budget: {len(sig)} significant -> {MAX_SIGNIFICANT_PER_EPISODE}")
+    return items
+
+
 def _str_list(value) -> list[str]:
     if not isinstance(value, list):
         return []
@@ -141,30 +203,113 @@ def _validate(raw: str, n_segments: int) -> dict:
     """Enforce the output contract; drop (and count) malformed items.
     Returns {"items": [...], "guests": [...], "topics": [...]}."""
     data = json.loads(raw)
-    items, dropped = [], 0
+    items, reasons = [], []
     for item in data.get("items", []):
         ids = item.get("segment_ids")
-        ok = (
-            item.get("tier") in ("significant", "fragment")
-            and item.get("stream") in STREAMS
-            and isinstance(item.get("why"), str)
-            and isinstance(ids, list)
-            and ids
-            and all(isinstance(i, int) and 0 <= i < n_segments for i in ids)
-            and ids == list(range(ids[0], ids[-1] + 1))  # consecutive run
-        )
-        if ok:
-            item["institutional_memory"] = bool(item.get("institutional_memory", False))
-            items.append(item)
-        else:
-            dropped += 1
-    if dropped:
-        print(f"[summarise] dropped {dropped} malformed item(s)")
+        why = None
+        if item.get("tier") not in ("significant", "fragment"):
+            why = "bad tier"
+        elif item.get("stream") not in STREAMS:
+            why = "bad stream"
+        elif not isinstance(item.get("why"), str):
+            why = "no why"
+        elif not (isinstance(ids, list) and ids and all(isinstance(i, int) and 0 <= i < n_segments for i in ids)):
+            why = "bad ids"
+        elif ids != list(range(ids[0], ids[-1] + 1)):
+            # Gaps break verbatim integrity — splicing non-adjacent speech would
+            # misrepresent it. Salvage the longest consecutive run instead of
+            # binning the item (a whole episode was lost to this, 2026-07-25).
+            best = cur = [ids[0]]
+            for prev, nxt in zip(ids, ids[1:]):
+                cur = cur + [nxt] if nxt == prev + 1 else [nxt]
+                if len(cur) > len(best):
+                    best = cur
+            item["segment_ids"] = best
+            reasons.append(f"gapped ids -> salvaged {len(best)}/{len(ids)}")
+        if why:
+            reasons.append(why)
+            continue
+        item["institutional_memory"] = bool(item.get("institutional_memory", False))
+        items.append(item)
+    if reasons:
+        print(f"[summarise] item issues: {', '.join(reasons)}")
+    items = _enforce_tier_budget(items)
     return {
         "items": items,
         "guests": _str_list(data.get("guests")),
         "topics": _str_list(data.get("topics")),
     }
+
+
+CLUSTER_PROMPT = """Below are items selected from several podcast episodes recorded around the same time, for one reader's daily briefing. Different shows often cover the SAME story — your job is to group those together so the reader sees each story once, with all its sources.
+
+Group two items only if they are about the SAME underlying story or claim (e.g. both about who will be Chancellor, both about the same funding decision). Do NOT group items that merely share a topic area (two unrelated Treasury items stay separate).
+
+Return JSON only. List only genuine groups of 2 or more; ungrouped items are assumed singletons:
+{{"groups": [[3, 7, 11], [2, 5]]}}
+
+# Items
+{listing}
+"""
+
+
+def cluster_items(flat: list[tuple[dict, dict]], gemini_cfg: dict) -> list[list[int]]:
+    """Group indices of items that cover the same story across episodes.
+
+    Returns a list of groups covering every index exactly once (singletons
+    included), in the original order. Any failure degrades to all-singletons,
+    i.e. today's behaviour.
+    """
+    singletons = [[i] for i in range(len(flat))]
+    if len(flat) < 2:
+        return singletons
+
+    listing = "\n".join(
+        f"[{i}] ({t['metadata']['show']}) {item['why']}" for i, (item, t) in enumerate(flat)
+    )
+    models = [gemini_cfg["model"]]
+    if gemini_cfg.get("fallback_model") and gemini_cfg["fallback_model"] not in models:
+        models.append(gemini_cfg["fallback_model"])
+
+    client = genai.Client()
+    raw = None
+    for model in models:
+        try:
+            raw = _call_with_backoff(client, model, CLUSTER_PROMPT.format(listing=listing))
+            break
+        except errors.APIError as e:
+            print(f"[cluster] {model} failed ({e.code})")
+    if raw is None:
+        print("[cluster] unavailable - treating all items as separate")
+        return singletons
+
+    try:
+        groups = json.loads(raw).get("groups", [])
+    except json.JSONDecodeError:
+        print("[cluster] unparseable response - treating all items as separate")
+        return singletons
+
+    used, out = set(), []
+    for g in groups:
+        if not isinstance(g, list):
+            continue
+        members = [i for i in g if isinstance(i, int) and 0 <= i < len(flat) and i not in used]
+        if len(members) < 2:
+            continue  # a "group" of one adds nothing
+        used.update(members)
+        out.append(sorted(members))
+    # Everything the model didn't group stays a singleton, original order kept.
+    result = []
+    for i in range(len(flat)):
+        if i in used:
+            grp = next((g for g in out if g[0] == i), None)
+            if grp:
+                result.append(grp)
+        else:
+            result.append([i])
+    merged = sum(len(g) - 1 for g in result)
+    print(f"[cluster] {len(flat)} item(s) -> {len(result)} story/stories ({merged} duplicate(s) merged)")
+    return result
 
 
 TOP_LINE_PROMPT = """You pick the top line of a daily signals briefing for this reader: an External Affairs & Policy Manager at The Crown Estate focused on offshore wind — he cares most about ministerial-altitude signals touching energy, the Treasury's mood on big capital projects, and the machinery of government.
@@ -175,19 +320,14 @@ Below are today's significant items (one line each, with the show they came from
 """
 
 
-def select_top_line(episodes: list[dict], gemini_cfg: dict) -> list[tuple[dict, dict]]:
-    """Pick the briefing's top line from all episodes' significant items.
+def select_top_line(stories: list[dict], gemini_cfg: dict) -> list[tuple[dict, dict]]:
+    """Pick the briefing's top line from the deduped stories' primaries.
 
     Selection only — items are referenced by index, never rewritten. With four
     or fewer candidates code picks them all and no model call happens; any
     model failure falls back to the first four.
     """
-    candidates = [
-        (item, ep["transcript"])
-        for ep in episodes
-        for item in ep["items"]
-        if item["tier"] == "significant"
-    ]
+    candidates = [s["primary"] for s in stories if s["primary"][0]["tier"] == "significant"]
     if len(candidates) <= 4:
         return candidates
 
@@ -228,18 +368,19 @@ def summarise(transcript: dict, gemini_cfg: dict) -> dict:
     if fallback and fallback not in models:
         models.append(fallback)
 
+    # Each model gets two attempts; a bad-JSON retry must fall through to the
+    # fallback model, not escape (it used to, costing the whole episode).
     last_error: Exception | None = None
     for model in models:
-        try:
-            print(f"[summarise] calling {model} ({n} segments)")
-            raw = _call_with_backoff(client, model, prompt)
+        for attempt in (1, 2):
             try:
-                return _validate(raw, n)
-            except (json.JSONDecodeError, AttributeError, TypeError):
-                print("[summarise] unparseable response, retrying once")  # spec §9
-                raw = _call_with_backoff(client, model, prompt)
-                return _validate(raw, n)
-        except errors.APIError as e:
-            print(f"[summarise] {model} failed ({e.code}); trying next model" if model != models[-1] else f"[summarise] {model} failed ({e.code})")
-            last_error = e
+                print(f"[summarise] calling {model} ({n} segments)")
+                return _validate(_call_with_backoff(client, model, prompt), n)
+            except (json.JSONDecodeError, AttributeError, TypeError) as e:
+                print(f"[summarise] {model}: unparseable response (attempt {attempt})")  # spec §9
+                last_error = e
+            except errors.APIError as e:
+                print(f"[summarise] {model} failed ({e.code})")
+                last_error = e
+                break  # API-level failure: go straight to the next model
     raise last_error

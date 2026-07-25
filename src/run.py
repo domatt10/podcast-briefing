@@ -24,7 +24,7 @@ from in_print import fetch_in_print
 from index import append_index_line
 from news import fetch_news
 from politico import fetch_politico
-from render import render_briefing, render_fallback, render_quiet
+from render import build_stories, render_briefing, render_fallback, render_quiet
 from state import (
     clear_feed_failure,
     is_processed,
@@ -38,7 +38,7 @@ from state import (
     save_state,
     sent_email_today,
 )
-from summarise import select_top_line, summarise
+from summarise import cluster_items, select_top_line, summarise
 from transcribe import ensure_readable, transcribe
 
 EPISODE_RETRY_CAP = 3
@@ -191,10 +191,14 @@ def main() -> None:
 
     if briefed or in_print_items:
         episodes_data = [result for _, result in briefed]
-        top = select_top_line(episodes_data, cfg["gemini"]) if briefed else []
-        print(f"[render] top line: {len(top)} item(s), in-print: {len(in_print_items)}")
+        # Dedupe the same story across shows before anything is ranked or rendered.
+        flat = [(item, ep["transcript"]) for ep in episodes_data for item in ep["items"]]
+        groups = cluster_items(flat, cfg["gemini"]) if flat else []
+        stories = build_stories(episodes_data, groups)
+        top = select_top_line(stories, cfg["gemini"]) if stories else []
+        print(f"[render] {len(stories)} story/stories, top line: {len(top)}, in-print: {len(in_print_items)}")
         subject, text, html = render_briefing(
-            date_label, episodes_data, top=top, footer_notes=footer, in_print=in_print_items
+            date_label, stories, top=top, footer_notes=footer, in_print=in_print_items
         )
     elif failed:
         subject, text, html = render_fallback(
