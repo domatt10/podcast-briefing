@@ -13,13 +13,20 @@ on:
     inputs:
       days:
         description: "How many days back to cover"
-        default: "90"
+        default: "210"
       limit:
         description: "Max episodes total (0 = no cap) — use e.g. 3 for a dry run"
         default: "0"
       chunks:
         description: "Parallel chunks"
         default: "20"
+  # ⚠ TEMPORARY (added 2026-07-26 for the back-to-January backfill).
+  # Chunks self-limit at 4h and the collector always banks, so the job ratchets:
+  # each pass transcribes what it can and the next pass picks up the rest. Once
+  # the planner reports no work these runs cost ~1 minute and do nothing.
+  # DELETE THIS SCHEDULE once the archive reaches 2026-01-01 (see HANDOVER.md).
+  schedule:
+    - cron: "20 */4 * * *"
 
 permissions:
   contents: read   # archive pushes go via the deploy key, not GITHUB_TOKEN
@@ -52,12 +59,13 @@ jobs:
           python-version: "3.12"
           cache: pip
       - run: pip install -r requirements.txt
+      # inputs.* are empty on a scheduled run, hence the fallbacks.
       - id: plan
         run: >
           python src/backfill_plan.py
-          --days "${{ inputs.days }}"
-          --limit "${{ inputs.limit }}"
-          --chunks "${{ inputs.chunks }}"
+          --days "${{ inputs.days || '210' }}"
+          --limit "${{ inputs.limit || '0' }}"
+          --chunks "${{ inputs.chunks || '20' }}"
           --archive archive --out plan.json
       - uses: actions/upload-artifact@v4
         with:
