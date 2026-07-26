@@ -213,6 +213,16 @@ and no episode should return an unexpected zero.
   the starter prompt already; it lives outside this repo and reads the archive
   read-only. The archive's `README.md` documents the three access patterns.
 
+**Built 2026-07-26: offline archive search page.** `src/build_search.py` emits a
+single self-contained ~18 MB HTML file over the whole archive (892 docs, 23,003
+paragraphs) — no server, no API key, works offline, every result carries its
+citation. `refresh-search.bat` does pull + rebuild + open in one double-click.
+It is **gitignored in the archive on purpose** (rebuilt wholesale daily;
+committing it would add gigabytes of history a year). Search is whole-word by
+default (`*` for stems) — an earlier substring version made "REMA" match
+"remember", 790 false positives. JS is covered by node assertions in the
+scratchpad; re-run them if you touch the query parser.
+
 **No blockers.** Nothing is broken, nothing is waiting on Dom, both repos are
 clean and pushed.
 
