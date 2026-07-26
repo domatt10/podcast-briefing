@@ -174,9 +174,14 @@ font:15px/1.6 Georgia,serif;color:var(--muted);display:none}
 #more{margin:18px 0;padding:10px 16px;font-size:14px;border:1px solid var(--rule);
 border-radius:6px;background:var(--panel);color:var(--body);cursor:pointer;font-family:inherit}
 .empty{color:var(--faint);padding:26px 0;font-size:15px}
+#stale{display:none;background:#fdf3e3;color:#8a5a1b;border:1px solid #e8d4ac;
+border-radius:6px;padding:11px 14px;margin:0 0 14px;font-size:13.5px;line-height:1.5}
+@media (prefers-color-scheme:dark){#stale{background:#2e2412;color:#e0b878;border-color:#4a3a1c}}
+#stale b{font-weight:700}
 </style></head><body><div class="wrap">
 <h1>Archive search</h1>
 <div class="sub">__SUB__</div>
+<div id="stale"></div>
 <input id="q" placeholder="Search the archive…" autofocus autocomplete="off">
 <div class="hint">Whole words, combined with AND. Use <code>,</code> for alternatives
 (<code>zonal, REMA, locational</code>), <code>"quotes"</code> for an exact phrase,
@@ -190,6 +195,18 @@ border-radius:6px;background:var(--panel);color:var(--body);cursor:pointer;font-
 <button id="more" style="display:none">Show more results</button>
 </div>
 <script>
+const BUILT="__BUILT__";
+// The page is a snapshot on disk, so a bookmark can silently show old data.
+// Say so plainly once it's more than a day behind.
+(function(){
+  const days=Math.floor((Date.now()-Date.parse(BUILT+"T00:00:00"))/86400000);
+  if(days<2)return;
+  const el=document.getElementById('stale');
+  el.innerHTML='<b>This page is '+days+' days old.</b> It was built on '+BUILT+
+    ' and does not include anything since. To bring it up to date, double-click '+
+    '<b>refresh-search.bat</b> in your podcast-briefing folder.';
+  el.style.display='block';
+})();
 const DOCS=__DOCS__,P=__PARAS__,KINDS=__KINDS__;
 const LOW=P.map(r=>r[2].toLowerCase());
 const K=Object.fromEntries(KINDS.map(k=>[k[0],k]));
@@ -345,6 +362,7 @@ def main() -> None:
         PAGE.replace("__DOCS__", json.dumps(docs, ensure_ascii=False, separators=(",", ":")))
         .replace("__PARAS__", json.dumps(paras, ensure_ascii=False, separators=(",", ":")))
         .replace("__KINDS__", json.dumps(KINDS))
+        .replace("__BUILT__", date.today().isoformat())
         .replace("__SUB__", sub)
     )
     out.write_text(html, encoding="utf-8")
