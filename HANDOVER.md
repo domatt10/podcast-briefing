@@ -223,8 +223,32 @@ default (`*` for stems) — an earlier substring version made "REMA" match
 "remember", 790 false positives. JS is covered by node assertions in the
 scratchpad; re-run them if you touch the query parser.
 
-**No blockers.** Nothing is broken, nothing is waiting on Dom, both repos are
-clean and pushed.
+### ⚠ IN FLIGHT (started 2026-07-26): backfill to 2026-01-01
+
+Dom asked to extend the archive back to 1 January. The planner found **634
+episodes / ~349 h of audio** — roughly half of it the back catalogue of the five
+shows added on 2026-07-16 (Coffee House Shots alone: 194), which had only ever
+been *seeded*, not transcribed.
+
+`backfill.yml` has a **TEMPORARY 4-hourly `schedule:`** so it grinds unattended.
+Chunks self-limit at 4 h and the collector always banks, so each pass ratchets
+forward; expect roughly **5 passes over 1–2 days**. Once the planner reports no
+work, runs become ~1-minute no-ops.
+
+**Two things to do when it finishes** (check with
+`python src/backfill_plan.py --days 210 --archive <archive>` → "TOTAL: 0 episodes"):
+
+1. **Delete the `schedule:` block from `backfill.yml`** — it is marked TEMPORARY
+   in the file. Leaving it costs a pointless run every 4 hours forever.
+2. **Rebuild the search page** and check its size. The archive roughly triples,
+   so `search.html` goes from ~18 MB to perhaps 50 MB. If that is sluggish in the
+   browser, add a default date-range filter or split the page by year.
+
+Politico is **done**: backfilled to the mailbox's own start, 2026-02-20 (Dom
+correctly guessed they didn't arrive in January). 217 newsletters, unbroken from
+late February. There is nothing earlier to fetch.
+
+**No other blockers.** Nothing else is broken or waiting on Dom.
 
 ---
 
