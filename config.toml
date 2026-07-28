@@ -284,3 +284,13 @@ category = "energy"
 name = "The ReEnergise Podcast"
 url = "https://feeds.soundcloud.com/users/soundcloud:users:85057304/sounds.rss"
 category = "energy"
+
+# Added 2026-07-28 at Dom's request. Weekly, ~44 min. Wistia-hosted feed, and
+# its entries are NOT in date order — harmless, fetch_episodes sorts by date.
+# Content skews to battery storage and European power markets; the GB grid and
+# policy episodes (NESO, connections reform, Clean Power 2030, GB Energy) are
+# the payload, and the core-patch gate should bin most of the rest.
+[[feeds]]
+name = "Transmission (Modo Energy)"
+url = "https://fast.wistia.com/channels/vtx0dp52da/rss"
+category = "energy"
