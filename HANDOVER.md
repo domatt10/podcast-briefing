@@ -223,7 +223,33 @@ default (`*` for stems) — an earlier substring version made "REMA" match
 "remember", 790 false positives. JS is covered by node assertions in the
 scratchpad; re-run them if you touch the query parser.
 
-### ⚠ IN FLIGHT (started 2026-07-26): backfill to 2026-01-01
+### ✅ DONE (2026-07-29): backfill to January, and a concurrency bug it exposed
+
+The backfill finished. Archive now holds **972 transcripts covering 2025-12-28 to
+date** (was 328 from 2026-04-08), plus 220 Politico newsletters back to
+2026-02-20 (the mailbox's own start — nothing earlier exists). 19th feed added:
+Transmission (Modo Energy), with its 43 in-window episodes backfilled. The
+temporary 4-hourly backfill schedule has been **removed**; backfill is
+manual-only again. Search page rebuilt: 40 MB, 44,839 paragraphs, searches still
+20–67 ms.
+
+**The bug it exposed — worth understanding, because the lesson generalises.**
+On 2026-07-29 the 03:47 briefing ran fine and emailed, then its archive push was
+*rejected* because the backfill collector had pushed seconds earlier. That single
+failure cascaded: the run reported failure (→ Healthchecks alert), `state.json`
+was never persisted so `last_email_at` was lost, and the 09:10 backup run
+therefore believed no email had gone out — re-processed the episodes and sent a
+**second briefing**. No data was lost, but the one-email-per-day guarantee was
+broken.
+
+Root cause: `briefing.yml`'s archive push was the only archive push in the repo
+**without** a pull-rebase retry loop (the heartbeat, the backfill collector and
+`constituency.yml` all had one). Fixed. **The general lesson: the one-email gate
+is only as reliable as the archive push, because the archive is the only place
+state lives. Any new writer to the archive must retry, and adding a recurring
+second writer is a real hazard.**
+
+### (historical) IN FLIGHT notes from 2026-07-26
 
 Dom asked to extend the archive back to 1 January. The planner found **634
 episodes / ~349 h of audio** — roughly half of it the back catalogue of the five
