@@ -20,13 +20,12 @@ on:
       chunks:
         description: "Parallel chunks"
         default: "20"
-  # ⚠ TEMPORARY (added 2026-07-26 for the back-to-January backfill).
-  # Chunks self-limit at 4h and the collector always banks, so the job ratchets:
-  # each pass transcribes what it can and the next pass picks up the rest. Once
-  # the planner reports no work these runs cost ~1 minute and do nothing.
-  # DELETE THIS SCHEDULE once the archive reaches 2026-01-01 (see HANDOVER.md).
-  schedule:
-    - cron: "20 */4 * * *"
+  # NO schedule. A temporary 4-hourly one ran 2026-07-26 to 07-29 to backfill
+  # the archive to January; it is removed because its collector pushes to the
+  # archive collided with the daily briefing's push (2026-07-29: briefing run
+  # failed, state.json was lost, and the backup run sent a second email).
+  # Both pushes now retry, but this workflow stays manual-only: it is a one-off
+  # tool, and concurrent archive writers are a risk worth not taking daily.
 
 permissions:
   contents: read   # archive pushes go via the deploy key, not GITHUB_TOKEN

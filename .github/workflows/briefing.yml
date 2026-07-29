@@ -77,10 +77,22 @@ jobs:
           git add -A
           if git diff --cached --quiet; then
             echo "archive unchanged"
-          else
-            git commit -m "Archive update $(date -u +%Y-%m-%dT%H:%MZ)"
-            GIT_SSH_COMMAND="ssh -i ~/.ssh/archive_key -o IdentitiesOnly=yes" git push
+            exit 0
           fi
+          git commit -m "Archive update $(date -u +%Y-%m-%dT%H:%MZ)"
+          # MUST retry: a backfill or Constituency Watch push landing mid-run
+          # rejects this one, and losing it means state.json (including
+          # last_email_at) is never persisted - so the next run re-processes the
+          # same episodes and sends a SECOND briefing. That happened on
+          # 2026-07-29. Every other archive push in this repo already retried;
+          # this was the gap.
+          export GIT_SSH_COMMAND="ssh -i ~/.ssh/archive_key -o IdentitiesOnly=yes"
+          for i in 1 2 3; do
+            git push && exit 0
+            echo "push rejected (attempt $i) - rebasing onto the other writer"
+            git pull --rebase
+          done
+          exit 1
 
       - name: Heartbeat commit (keeps the schedule alive; metadata only)
         run: |
