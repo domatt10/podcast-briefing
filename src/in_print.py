@@ -25,13 +25,21 @@ from bs4 import BeautifulSoup
 
 from config import ROOT
 from news import _article_text
-from summarise import _call_with_backoff, genai
+from summarise import _baseline, _call_with_backoff, genai
 
 MIN_BODY_CHARS = 400  # below this we can't honestly offer an "extended quote"
 
 SELECT_PROMPT = """You pick items for the "In print" section of a private daily political briefing. The reader:
 
 {profile}
+
+# What he already knows — do not pick pieces that just report these
+
+{baseline}
+
+Commentary reacting to the settled facts above is not news to him. Pick such a
+piece only if it adds something the baseline doesn't already give him: what a new
+post-holder will actually do, a consequence still unsettled, or insider detail.
 
 # The mission of this section
 Catch what would OTHERWISE SLIP UNDER HIS RADAR. He already reads Politico Playbook and the mainstream front pages, and gets formal parliamentary monitoring elsewhere — never pick a story those would carry prominently. Prioritise: energy/DESNZ and Treasury signal, machinery-of-government insight, party-internal mood (ConservativeHome and LabourList show what each party is telling itself), and institutional-memory explainers. Comment pieces are fine when they reveal positioning or explain how something actually works — the note should say what the piece SIGNALS, not just what it says.
@@ -163,7 +171,12 @@ def fetch_in_print(cfg: dict, archive: Path, state: dict) -> tuple[list[dict], l
     )
     data = _ask(
         models,
-        SELECT_PROMPT.format(profile=profile, max_items=cfg["in_print"]["max_items"], listing=listing),
+        SELECT_PROMPT.format(
+            profile=profile,
+            baseline=_baseline(),
+            max_items=cfg["in_print"]["max_items"],
+            listing=listing,
+        ),
     )
 
     results, per_source = [], {}

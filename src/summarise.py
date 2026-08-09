@@ -15,12 +15,16 @@ A 400-class error is a prompt bug — fail fast so it gets fixed, never retried.
 
 import json
 import random
+import re
 import time
+from datetime import date
 
 from google import genai
 from google.genai import errors
 
 from config import ROOT
+
+BASELINE_STALE_DAYS = 45  # nudge to re-verify baseline.md after a reshuffle etc.
 
 STREAMS = (
     "energy_desnz",
@@ -38,6 +42,26 @@ PROMPT = """You are the researcher for a private daily signals-and-speculation b
 # The reader (this decides what clears the bar)
 
 {profile}
+
+# What the reader ALREADY KNOWS — do not report these back to him
+
+{baseline}
+
+This baseline is established fact. Podcasts lag events by days and love a recap,
+so you will hear these facts discussed constantly. Discussion of something in the
+"Settled" list is NOT a signal, however confidently or recently it is said:
+someone explaining that there has been a change of Chancellor, or reacting to the
+reshuffle, is telling this reader something he has known for weeks.
+
+Include such material ONLY when it carries something genuinely additional:
+- new information that CHANGES or contradicts the baseline (a further move, a
+  reversal, a resignation),
+- a consequence or intention not yet settled — what the new post-holder will
+  actually DO, priorities shifting, money moving,
+- an insider account of how or why it happened that is not already public.
+
+If you strip the recap away and nothing is left, there is no item. Beware of
+"why" lines that merely restate the baseline in different words.
 
 # This episode (metadata from the podcast feed — trust it, don't infer)
 
@@ -124,11 +148,27 @@ def _format_segments(segments: list[dict]) -> str:
     return "\n".join(f"[{s['id']}] {s['text']}" for s in segments)
 
 
+def _baseline() -> str:
+    """Current-landscape file: what is already established, so recaps of it
+    don't get reported back as news. Optional — absence must not break a run."""
+    path = ROOT / "baseline.md"
+    if not path.exists():
+        return "(No baseline file — treat nothing as pre-established.)"
+    text = path.read_text(encoding="utf-8")
+    m = re.search(r"\*\*Last verified:\*\*\s*(\d{4}-\d{2}-\d{2})", text)
+    if m:
+        age = (date.today() - date.fromisoformat(m.group(1))).days
+        if age > BASELINE_STALE_DAYS:
+            print(f"[summarise] WARNING: baseline.md last verified {age} days ago")
+    return text
+
+
 def build_prompt(transcript: dict) -> str:
     profile = (ROOT / "profile.md").read_text(encoding="utf-8")
     meta = transcript["metadata"]
     return PROMPT.format(
         profile=profile,
+        baseline=_baseline(),
         show=meta["show"],
         title=meta["title"],
         published=meta["published"],

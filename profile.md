@@ -29,9 +29,11 @@ relevance arbiter (spec §8) — richer and more specific is always better.
 ## Two audiences (what makes him look on the ball)
 
 - *Specialist marine policymakers* — he advises them on the wider political
-  environment. Wants **granular political signals**: funding shifts ("Reeves might
-  cut CCS funding"), personnel ("the energy minister looks like he'll be moved"),
-  prioritisation direction ("government favouring projects that do X over Y").
+  environment. Wants **granular political signals**: funding shifts ("the
+  Treasury is cooling on CCS"), personnel ("the energy minister looks like he'll
+  be moved"), prioritisation direction ("government favouring projects that do X
+  over Y"). Name post-holders from `baseline.md`, never from memory — this file
+  deliberately uses roles rather than names so it doesn't go stale.
 - *Seniors & external-affairs colleagues* — wants the **big-picture political
   weather**: where the winds are blowing, where government is feeling pressure.
   Plus a career/credibility interest in being seen as across the political vibe
