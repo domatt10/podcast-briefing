@@ -35,6 +35,11 @@ the summarisation prompt).
 - Secrets from environment variables (local: `.env`, gitignored; CI: GitHub Secrets).
 - The briefer profile (spec §8) is the relevance arbiter — prompt changes should be
   tested against it, not against intuition.
+- `baseline.md` is the **current-landscape file**: who is in post and what is
+  already settled, so recaps of established fact aren't reported back as news. It
+  is the one file that goes stale by itself — **re-verify it against
+  gov.uk/government/ministers after any reshuffle**. The pipeline warns in the log
+  once it is 45 days old. Keep `profile.md` naming roles, not people.
 
 ## Status
 
