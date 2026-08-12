@@ -122,20 +122,40 @@ def build_stories(episodes: list[dict], groups: list[list[int]]) -> list[dict]:
     return stories
 
 
+def _group_by_episode(stories: list[dict]) -> list[list[dict]]:
+    """Bucket stories by the episode their primary quote came from, keeping
+    first-appearance order. Lets several passages from one episode be presented
+    as one source with several extracts."""
+    order: list[tuple] = []
+    buckets: dict[tuple, list[dict]] = {}
+    for story in stories:
+        m = story["primary"][1]["metadata"]
+        key = (m["show"], m["title"], m["published"])
+        if key not in buckets:
+            buckets[key] = []
+            order.append(key)
+        buckets[key].append(story)
+    return [buckets[k] for k in order]
+
+
 def _source_line(transcript: dict, ts: str) -> str:
     m = transcript["metadata"]
     who = m["author"] or "hosts"
-    return f"{m['show']} · ep. “{m['title']}” · {who} · {m['published']} · {ts}"
+    bits = [m["show"], f"ep. “{m['title']}”", who, m["published"]]
+    if ts:
+        bits.append(ts)
+    return " · ".join(bits)
 
 
 def _source_html(transcript: dict, ts: str) -> str:
     """Same facts as _source_line, with the show emphasised for scanning."""
     m = transcript["metadata"]
     who = m["author"] or "hosts"
-    return (
+    out = (
         f"<strong style='color:{BODY};font-weight:600'>{escape(m['show'])}</strong> · "
-        f"“{escape(m['title'])}” · {escape(who)} · {escape(m['published'])} · {escape(ts)}"
+        f"“{escape(m['title'])}” · {escape(who)} · {escape(m['published'])}"
     )
+    return f"{out} · {escape(ts)}" if ts else out
 
 
 def _corroboration(others: list[tuple[dict, dict]]) -> str:
@@ -285,36 +305,77 @@ def render_briefing(
         significant = [s for s in entries if s["primary"][0]["tier"] == "significant"]
         fragments = [s for s in entries if s["primary"][0]["tier"] != "significant"]
 
-        for story in significant:
-            item, transcript = story["primary"]
-            quote, ts = reconstitute(item, transcript)
-            badge = "★ Worth remembering — institutional memory. " if item["institutional_memory"] else ""
-            src = _source_line(transcript, ts)
-            also = _corroboration(story["others"])
-            text_parts += [f"  {badge}{item['why']}", f"    “{quote}”", f"    — {src}"]
-            if also:
-                text_parts.append(f"    {also}")
-            text_parts.append("")
+        # One episode can warrant several passages. Group them so they read as
+        # one source with several extracts, rather than three separate sources:
+        # the episode is cited once, and the passages are separated by a dotted
+        # rule with just their timestamps.
+        for episode_stories in _group_by_episode(significant):
+            _, first_transcript = episode_stories[0]["primary"]
+            multi = len(episode_stories) > 1
+            if multi:
+                head = _source_line(first_transcript, "").rstrip(" ·")
+                text_parts.append(f"  From {head} — {len(episode_stories)} passages:")
+                html_parts.append(
+                    f"<div style='margin:0 0 6px;padding:9px 12px;border-left:3px solid {colour};"
+                    f"background:{QUOTE_BG}'><div style='{S_SOURCE}'>"
+                    f"{_source_html(first_transcript, '')}</div>"
+                    f"<div style='{S_LABEL};color:{FAINT};margin-top:3px'>"
+                    f"{len(episode_stories)} passages</div></div>"
+                )
 
-            badge_html = (
-                f"<div style='display:inline-block;background:{BADGE_BG};color:{BADGE_INK};"
-                f"{S_LABEL};padding:3px 7px;border-radius:3px;margin-bottom:8px'>"
-                f"★ Worth remembering</div><br>"
-                if item["institutional_memory"]
-                else ""
-            )
-            html_parts.append(
-                f"<div style='margin:0 0 22px'>{badge_html}"
-                f"<p style='{S_WHY}'>{escape(item['why'])}</p>"
-                f"{_quote_html(quote, colour)}"
-                f"<div style='{S_SOURCE}'>{_source_html(transcript, ts)}</div>"
-                + (
-                    f"<div style='{S_SOURCE};color:{FAINT};margin-top:2px'>{escape(also)}</div>"
-                    if also
+            for n, story in enumerate(episode_stories):
+                item, transcript = story["primary"]
+                quote, ts = reconstitute(item, transcript)
+                badge = "★ Worth remembering — institutional memory. " if item["institutional_memory"] else ""
+                also = _corroboration(story["others"])
+                # Grouped passages cite only their timestamp; the episode is
+                # already named once above.
+                src = f"same episode · {ts}" if multi else _source_line(transcript, ts)
+                text_parts += [f"  {'· ' if multi else ''}{badge}{item['why']}",
+                               f"    “{quote}”", f"    — {src}"]
+                if also:
+                    text_parts.append(f"    {also}")
+                text_parts.append("")
+
+                badge_html = (
+                    f"<div style='display:inline-block;background:{BADGE_BG};color:{BADGE_INK};"
+                    f"{S_LABEL};padding:3px 7px;border-radius:3px;margin-bottom:8px'>"
+                    f"★ Worth remembering</div><br>"
+                    if item["institutional_memory"]
                     else ""
                 )
-                + "</div>"
-            )
+                # Dotted rule between passages of the same episode; the whole
+                # group sits in a tinted left-bordered block.
+                if multi:
+                    sep = (
+                        f"border-top:1px dotted {RULE};padding-top:14px;margin-top:14px;"
+                        if n
+                        else ""
+                    )
+                    wrapper = (
+                        f"margin:0;padding:0 0 0 12px;border-left:3px solid {colour};{sep}"
+                    )
+                else:
+                    wrapper = "margin:0 0 22px"
+                cite = (
+                    f"<span style='color:{FAINT}'>{escape(ts)}</span>"
+                    if multi
+                    else _source_html(transcript, ts)
+                )
+                html_parts.append(
+                    f"<div style='{wrapper}'>{badge_html}"
+                    f"<p style='{S_WHY}'>{escape(item['why'])}</p>"
+                    f"{_quote_html(quote, colour)}"
+                    f"<div style='{S_SOURCE}'>{cite}</div>"
+                    + (
+                        f"<div style='{S_SOURCE};color:{FAINT};margin-top:2px'>{escape(also)}</div>"
+                        if also
+                        else ""
+                    )
+                    + "</div>"
+                )
+            if multi:
+                html_parts.append("<div style='margin-bottom:22px'></div>")
 
         if fragments:
             text_parts.append("  In brief:")

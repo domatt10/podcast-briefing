@@ -113,6 +113,40 @@ def test_render_shows_corroboration_only_for_multi_source():
         assert "shared story" in body and "solo story" in body
 
 
+def test_multiple_passages_from_one_episode_are_grouped():
+    """Several quotes from one episode should read as one source with several
+    extracts — cited once, not three times over."""
+    t = _transcript("Political Currency")
+    episodes = [{"transcript": t, "items": [
+        _item(ids=[0, 1, 2], why="first point"),
+        _item(ids=[10, 11, 12], why="second point"),
+        _item(ids=[20, 21, 22], why="third point"),
+    ]}]
+    stories = build_stories(episodes, [[0], [1], [2]])
+    _, text, html = render_briefing("Friday 24 July 2026", stories)
+
+    # The episode title is stated once, not once per passage.
+    assert text.count("An Episode") == 1, text
+    assert "3 passages" in text and "3 passages" in html
+    assert text.count("same episode") == 3, "each passage should cite its timestamp only"
+    assert "dotted" in html, "passages should be separated by a dotted rule"
+    for why in ("first point", "second point", "third point"):
+        assert why in text and why in html
+
+
+def test_single_passage_keeps_its_full_citation():
+    t1, t2 = _transcript("Show A"), _transcript("Show B")
+    episodes = [
+        {"transcript": t1, "items": [_item(why="only item here")]},
+        {"transcript": t2, "items": [_item(why="other show item")]},
+    ]
+    stories = build_stories(episodes, [[0], [1]])
+    _, text, _ = render_briefing("Friday 24 July 2026", stories)
+    assert "same episode" not in text, "lone passages must keep the full source line"
+    assert "passages" not in text
+    assert "Show A" in text and "Show B" in text
+
+
 def test_render_survives_empty_day():
     _, text, _ = render_briefing("Friday 24 July 2026", [])
     assert "Nothing notable today" in text
