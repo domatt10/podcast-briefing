@@ -223,6 +223,26 @@ default (`*` for stems) — an earlier substring version made "REMA" match
 "remember", 790 false positives. JS is covered by node assertions in the
 scratchpad; re-run them if you touch the query parser.
 
+### ✅ DONE (2026-07-29, later): baseline, rename, layout
+
+- **`baseline.md` — new, and the one file that goes stale by itself.** Dom:
+  "it is not news to me that Rachel Reeves is no longer chancellor." The prompts
+  had no notion of what he already knows, so podcasts recapping the change of
+  administration read as fresh signal. `baseline.md` now carries who is in post
+  (verified against gov.uk/government/ministers), what is settled, and what is
+  still genuinely open. Injected into both `summarise.py` and `in_print.py`.
+  **Re-verify it after any reshuffle** — the pipeline warns in the log past 45
+  days. `profile.md` now names roles, not people, for the same reason.
+- **Renamed to "Daily podcast summary"** (was "Morning Signals"). Single `BRAND`
+  constant in `render.py`. Note: the email also carries news/Politico material,
+  so the name slightly undersells it — Dom knows, may revisit.
+- **Dropped the two band headings** ("On your patch" / "The wider weather").
+  Five sections, fixed order, lane colours do the grouping. `_band_html` is now
+  `_divider_html` and survives only to separate "In print".
+- **Several passages from one episode now group** into a single cited source
+  with a dotted rule between extracts, instead of repeating the full citation
+  each time. Two tests pin it. Fires often — six groups in one real day.
+
 ### ✅ DONE (2026-07-29): backfill to January, and a concurrency bug it exposed
 
 The backfill finished. Archive now holds **972 transcripts covering 2025-12-28 to
