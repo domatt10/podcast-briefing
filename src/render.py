@@ -5,9 +5,9 @@ show / episode title / date / author from feed metadata, and its quote text +
 timestamp come from the transcript segments referenced by ID. The only model
 prose on display is the one-line relevance note ("why").
 
-Layout follows docs/example-briefing.md: top line, two bands, five fixed
-sections in fixed order (so quiet days stay legible), tiered items, a badge for
-institutional-memory material. Three email shapes: the briefing, the fallback
+Layout: top line, then five fixed sections in fixed order (so quiet days stay
+legible), tiered items, a badge for institutional-memory material. The spec's
+two "band" headings were dropped in favour of the lane colours. Three email shapes: the briefing, the fallback
 (raw episode list when synthesis failed — something always arrives, spec §9),
 and the quiet-day one-liner.
 
@@ -18,23 +18,17 @@ because that is what survives Gmail, Outlook and Apple Mail alike.
 
 from html import escape
 
-# (stream key, display heading) in the fixed §5 order, grouped into bands.
-BANDS = [
-    (
-        "On your patch",
-        [
-            ("energy_desnz", "Energy / DESNZ"),
-            ("crown_estate", "Crown Estate lane"),
-        ],
-    ),
-    (
-        "The wider weather",
-        [
-            ("treasury_fiscal", "Treasury / fiscal"),
-            ("top_of_government", "Top of government"),
-            ("parliamentary_colour", "Parliamentary colour"),
-        ],
-    ),
+BRAND = "Daily podcast summary"
+
+# (stream key, display heading) in the fixed §5 order. The spec grouped these
+# under two bands ("On your patch" / "The wider weather"); dropped at Dom's
+# request 2026-07-29 — the lane colours and fixed order already do that work.
+SECTIONS = [
+    ("energy_desnz", "Energy / DESNZ"),
+    ("crown_estate", "Crown Estate lane"),
+    ("treasury_fiscal", "Treasury / fiscal"),
+    ("top_of_government", "Top of government"),
+    ("parliamentary_colour", "Parliamentary colour"),
 ]
 
 ENERGY_STREAMS = {"energy_desnz", "crown_estate"}
@@ -189,19 +183,20 @@ def _wrap_html(date_label: str, body: str, preheader: str = "") -> str:
     return (
         f"<div style='background:#ffffff;padding:24px 18px'>{hidden}"
         f"<div style='max-width:640px;margin:0 auto;font-family:{SERIF};color:{BODY}'>"
-        f"<div style='{S_LABEL};color:{ACCENT};margin-bottom:4px'>Morning Signals</div>"
+        f"<div style='{S_LABEL};color:{ACCENT};margin-bottom:4px'>{BRAND}</div>"
         f"<h1 style='font-family:{SERIF};font-size:23px;font-weight:700;color:{INK};"
         f"margin:0 0 4px;line-height:1.25'>{escape(date_label)}</h1>"
         f"{body}</div></div>"
     )
 
 
-def _band_html(band: str, colour: str = INK) -> str:
-    """Band rules stay neutral so the lane colours below them do the work."""
+def _divider_html(label: str, colour: str = INK) -> str:
+    """A labelled rule marking a change of material — now only used to separate
+    the reported-news block from the podcast sections above it."""
     return (
         f"<div style='margin:30px 0 14px'>"
         f"<div style='{S_LABEL};color:{colour};border-bottom:1px solid {RULE};"
-        f"padding-bottom:5px'>{escape(band)}</div></div>"
+        f"padding-bottom:5px'>{escape(label)}</div></div>"
     )
 
 
@@ -231,7 +226,7 @@ def render_briefing(
     for story in stories:
         by_stream.setdefault(story["primary"][0]["stream"], []).append(story)
 
-    subject = f"Morning Signals — {date_label}"
+    subject = f"{BRAND} — {date_label}"
     text_parts: list[str] = []
     html_parts: list[str] = []
 
@@ -274,84 +269,81 @@ def render_briefing(
         text_parts.append("")
         html_parts.append("</div>")
 
-    for band, sections in BANDS:
-        text_parts += [f"——— {band.upper()} ———", ""]
-        html_parts.append(_band_html(band))
-        for stream, heading in sections:
-            entries = by_stream.get(stream, [])
-            colour = STREAM_COLOURS.get(stream, ACCENT)
-            text_parts.append(f"{heading} ({len(entries)})")
-            html_parts.append(_section_html(heading, len(entries), colour))
-            if not entries:
-                text_parts += ["  Nothing notable today.", ""]
-                html_parts.append(
-                    f"<p style='font-family:{SANS};font-size:13px;color:{FAINT};margin:0 0 4px'>"
-                    f"Nothing notable today.</p>"
-                )
-                continue
+    for stream, heading in SECTIONS:
+        entries = by_stream.get(stream, [])
+        colour = STREAM_COLOURS.get(stream, ACCENT)
+        text_parts.append(f"{heading} ({len(entries)})")
+        html_parts.append(_section_html(heading, len(entries), colour))
+        if not entries:
+            text_parts += ["  Nothing notable today.", ""]
+            html_parts.append(
+                f"<p style='font-family:{SANS};font-size:13px;color:{FAINT};margin:0 0 4px'>"
+                f"Nothing notable today.</p>"
+            )
+            continue
 
-            significant = [s for s in entries if s["primary"][0]["tier"] == "significant"]
-            fragments = [s for s in entries if s["primary"][0]["tier"] != "significant"]
+        significant = [s for s in entries if s["primary"][0]["tier"] == "significant"]
+        fragments = [s for s in entries if s["primary"][0]["tier"] != "significant"]
 
-            for story in significant:
-                item, transcript = story["primary"]
-                quote, ts = reconstitute(item, transcript)
-                badge = "★ Worth remembering — institutional memory. " if item["institutional_memory"] else ""
-                src = _source_line(transcript, ts)
-                also = _corroboration(story["others"])
-                text_parts += [f"  {badge}{item['why']}", f"    “{quote}”", f"    — {src}"]
-                if also:
-                    text_parts.append(f"    {also}")
-                text_parts.append("")
+        for story in significant:
+            item, transcript = story["primary"]
+            quote, ts = reconstitute(item, transcript)
+            badge = "★ Worth remembering — institutional memory. " if item["institutional_memory"] else ""
+            src = _source_line(transcript, ts)
+            also = _corroboration(story["others"])
+            text_parts += [f"  {badge}{item['why']}", f"    “{quote}”", f"    — {src}"]
+            if also:
+                text_parts.append(f"    {also}")
+            text_parts.append("")
 
-                badge_html = (
-                    f"<div style='display:inline-block;background:{BADGE_BG};color:{BADGE_INK};"
-                    f"{S_LABEL};padding:3px 7px;border-radius:3px;margin-bottom:8px'>"
-                    f"★ Worth remembering</div><br>"
-                    if item["institutional_memory"]
+            badge_html = (
+                f"<div style='display:inline-block;background:{BADGE_BG};color:{BADGE_INK};"
+                f"{S_LABEL};padding:3px 7px;border-radius:3px;margin-bottom:8px'>"
+                f"★ Worth remembering</div><br>"
+                if item["institutional_memory"]
+                else ""
+            )
+            html_parts.append(
+                f"<div style='margin:0 0 22px'>{badge_html}"
+                f"<p style='{S_WHY}'>{escape(item['why'])}</p>"
+                f"{_quote_html(quote, colour)}"
+                f"<div style='{S_SOURCE}'>{_source_html(transcript, ts)}</div>"
+                + (
+                    f"<div style='{S_SOURCE};color:{FAINT};margin-top:2px'>{escape(also)}</div>"
+                    if also
                     else ""
                 )
-                html_parts.append(
-                    f"<div style='margin:0 0 22px'>{badge_html}"
-                    f"<p style='{S_WHY}'>{escape(item['why'])}</p>"
-                    f"{_quote_html(quote, colour)}"
-                    f"<div style='{S_SOURCE}'>{_source_html(transcript, ts)}</div>"
-                    + (
-                        f"<div style='{S_SOURCE};color:{FAINT};margin-top:2px'>{escape(also)}</div>"
-                        if also
-                        else ""
-                    )
-                    + "</div>"
-                )
+                + "</div>"
+            )
 
-            if fragments:
-                text_parts.append("  In brief:")
+        if fragments:
+            text_parts.append("  In brief:")
+            html_parts.append(
+                f"<div style='{S_LABEL};color:{FAINT};margin:14px 0 8px'>In brief</div>"
+            )
+            for story in fragments:
+                item, transcript = story["primary"]
+                quote, ts = reconstitute(item, transcript)
+                src = _source_line(transcript, ts)
+                also = _corroboration(story["others"])
+                text_parts.append(f"  - {item['why']} “{quote}” — {src} {also}".rstrip())
                 html_parts.append(
-                    f"<div style='{S_LABEL};color:{FAINT};margin:14px 0 8px'>In brief</div>"
+                    f"<div style='margin:0 0 12px;padding-left:12px;border-left:2px solid {colour}'>"
+                    f"<span style='font-family:{SERIF};font-size:15px;color:{INK};"
+                    f"line-height:1.5'>{escape(item['why'])}</span> "
+                    f"<span style='font-family:{SERIF};font-size:15px;color:{MUTED}'>"
+                    f"“{escape(quote.replace(chr(10) * 2, ' '))}”</span><br>"
+                    f"<span style='{S_SOURCE}'>{_source_html(transcript, ts)}"
+                    + (f"<br><span style='color:{FAINT}'>{escape(also)}</span>" if also else "")
+                    + "</span></div>"
                 )
-                for story in fragments:
-                    item, transcript = story["primary"]
-                    quote, ts = reconstitute(item, transcript)
-                    src = _source_line(transcript, ts)
-                    also = _corroboration(story["others"])
-                    text_parts.append(f"  - {item['why']} “{quote}” — {src} {also}".rstrip())
-                    html_parts.append(
-                        f"<div style='margin:0 0 12px;padding-left:12px;border-left:2px solid {colour}'>"
-                        f"<span style='font-family:{SERIF};font-size:15px;color:{INK};"
-                        f"line-height:1.5'>{escape(item['why'])}</span> "
-                        f"<span style='font-family:{SERIF};font-size:15px;color:{MUTED}'>"
-                        f"“{escape(quote.replace(chr(10) * 2, ' '))}”</span><br>"
-                        f"<span style='{S_SOURCE}'>{_source_html(transcript, ts)}"
-                        + (f"<br><span style='color:{FAINT}'>{escape(also)}</span>" if also else "")
-                        + "</span></div>"
-                    )
-                text_parts.append("")
+            text_parts.append("")
 
     if in_print:
         # Reported news/analysis, visually separate from podcast speculation.
         # Quotes are exact paragraphs reconstituted by code (in_print.py).
         text_parts += ["——— IN PRINT ———", ""]
-        html_parts.append(_band_html("In print", INPRINT_COLOUR))
+        html_parts.append(_divider_html("In print", INPRINT_COLOUR))
         for item in in_print:
             src = f"{item['source']} · “{item['title']}” · {item['published']}"
             text_parts.append(f"• {item['why']}")
@@ -368,7 +360,7 @@ def render_briefing(
             )
 
     _footer(footer_notes, text_parts, html_parts)
-    text = f"MORNING SIGNALS — {date_label}\n\n" + "\n".join(text_parts)
+    text = f"{BRAND.upper()} — {date_label}\n\n" + "\n".join(text_parts)
     preheader = orientation or "Nothing new since the last run."
     return subject, text, _wrap_html(date_label, "".join(html_parts), preheader)
 
@@ -383,7 +375,7 @@ def render_fallback(
 
     failures: (episode, transcript_url_or_None) pairs.
     """
-    subject = f"Morning Signals — {date_label} (fallback: processing failed)"
+    subject = f"{BRAND} — {date_label} (fallback: processing failed)"
     text_parts = [
         "Summarisation failed today, so here is the raw list of new episodes.",
         "They will be retried tomorrow.",
@@ -408,18 +400,18 @@ def render_fallback(
         )
     html_parts.append("</ul>")
     _footer(footer_notes, text_parts, html_parts)
-    text = f"MORNING SIGNALS — {date_label} (FALLBACK)\n\n" + "\n".join(text_parts)
+    text = f"{BRAND.upper()} — {date_label} (FALLBACK)\n\n" + "\n".join(text_parts)
     return subject, text, _wrap_html(date_label, "".join(html_parts), "Processing failed — raw episode list")
 
 
 def render_quiet(date_label: str, footer_notes: list[str] = ()) -> tuple[str, str, str]:
     """Nothing-new day: a one-liner, as spec §9 allows."""
-    subject = f"Morning Signals — {date_label} (quiet)"
+    subject = f"{BRAND} — {date_label} (quiet)"
     text_parts = ["Nothing new since the last run. All feeds checked."]
     html_parts = [
         f"<p style='font-family:{SANS};font-size:14px;color:{MUTED};margin:16px 0'>"
         "Nothing new since the last run. All feeds checked.</p>"
     ]
     _footer(footer_notes, text_parts, html_parts)
-    text = f"MORNING SIGNALS — {date_label}\n\n" + "\n".join(text_parts)
+    text = f"{BRAND.upper()} — {date_label}\n\n" + "\n".join(text_parts)
     return subject, text, _wrap_html(date_label, "".join(html_parts), "Quiet morning — nothing new")
