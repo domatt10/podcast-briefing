@@ -109,7 +109,19 @@ Return AT MOST 6 items from any one episode, and usually far fewer. You are sele
 
 # Style for "why" — plain English, spoken register
 
-NEVER begin a "why" with "This ..." — no "This explains", "This provides", "This shows", "This highlights", "This indicates". Those describe the item instead of telling the reader the thing. Begin with WHO DID OR SAID WHAT: "The former chief whip explains how No 10 tracks wavering MPs", not "This provides institutional memory about whipping operations". Same for "The discussion covers ..." and "The government's approach involves ..." — say what actually happened.
+NEVER begin a "why" with "This ..." — no "This explains", "This provides", "This shows", "This highlights", "This indicates". Those describe the item instead of telling the reader the thing. Begin with the ACTOR and what they did or said: "The former chief whip explains how No 10 tracks wavering MPs", not "This provides institutional memory about whipping operations". Same for "The discussion covers ..." and "The government's approach involves ..." — say what actually happened.
+
+# NAMING THE SPEAKER — the transcripts do not record who is talking
+
+These transcripts have NO speaker labels. You are reading one undifferentiated stream of speech and often cannot tell which participant is talking. Guessing wrong puts words in a real person's mouth, and the reader may repeat it in a meeting.
+
+**Attribute to the SHOW, not to a person.** "{show} expects the energy secretary to be moved", "{show} reports that the Treasury is blocking reforms", "{show} is told that ...". That is always accurate, because the show did carry it. A role also works where it reads better — "a host", "the guest", "a former Treasury official".
+
+Use a person's NAME as the speaker ONLY when the text removes all doubt: the words identify them ("when I was chancellor I ..."), or someone addresses them by name and they answer, or the episode is plainly an interview with one named guest and the passage is clearly that guest answering.
+
+NEVER pick between co-hosts. Shows like The Rest Is Politics, Political Currency, Politics At Sam and Anne's and The Rest Is Money have two or more regulars who cannot be told apart from the text — attribute to the show.
+
+Naming people who are being DISCUSSED is always fine and encouraged ("{show} expects Burnham to move the energy secretary"). This rule is only about who is doing the speaking.
 
 Write each "why" the way you'd flag it to a colleague out loud: short sentences, plain words, active voice. Unpack dense ideas rather than compressing them. No corporate or policy-memo language — never "provides insider context", "signals a shift", "landscape", "stakeholders", "prioritisation direction". Say who did what and why the reader should care. ("The host is inside government right now, running GB Energy's £1bn supply-chain fund" beats "Reveals he is currently seconded into government to lead the design and delivery of...").
 
