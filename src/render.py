@@ -73,15 +73,51 @@ def _fmt_ts(seconds: float) -> str:
     return f"~{h}:{m:02d}:{s:02d}" if h else f"~{m:02d}:{s:02d}"
 
 
+SENTENCE_END = (".", "?", "!", '"', "”", "…")
+
+
+def _snap_to_sentences(ids: list[int], segments: list[dict]) -> tuple[list[int], bool, bool]:
+    """Nudge a segment run onto sentence boundaries.
+
+    Whisper cuts segments mid-flow, so a run often opens mid-clause ("and
+    helping ferment the revolt...") — 39% of quotes did. Extend by at most one
+    segment either side when that lands cleanly; otherwise report it so the
+    quote can be marked with an honest ellipsis. Never trims: no words are lost.
+    """
+    ids = list(ids)
+    starts_mid = not segments[ids[0]]["text"].lstrip()[:1].isupper()
+    if starts_mid and ids[0] > 0:
+        prev = segments[ids[0] - 1]["text"].rstrip()
+        if prev.endswith(SENTENCE_END) is False and prev[:1].isupper():
+            ids.insert(0, ids[0] - 1)  # the sentence began in the previous segment
+            starts_mid = False
+
+    ends_mid = not segments[ids[-1]]["text"].rstrip().endswith(SENTENCE_END)
+    if ends_mid and ids[-1] + 1 < len(segments):
+        nxt = segments[ids[-1] + 1]["text"].strip()
+        # Only absorb the next segment if it CONTINUES this sentence (starts
+        # lowercase) and finishes it. Otherwise we'd tack on an unrelated one.
+        if nxt[:1].islower() and nxt.rstrip().endswith(SENTENCE_END):
+            ids.append(ids[-1] + 1)
+            ends_mid = False
+    return ids, starts_mid, ends_mid
+
+
 def reconstitute(item: dict, transcript: dict) -> tuple[str, str]:
     """Exact quote text + timestamp from the item's segment IDs — the verbatim
     mechanism's final step. No model output involved.
 
     Long passages are broken into paragraphs (~every PARA_GAP_SECS of speech)
     so they don't arrive as a wall of text on a phone. Paragraphing is
-    whitespace only: not a word of the transcript is changed.
+    whitespace only: not a word of the transcript is changed. Where a passage
+    still starts or ends mid-sentence it is marked with an ellipsis — honest
+    about the clip rather than pretending the speaker began there.
     """
-    segs = [transcript["segments"][i] for i in item["segment_ids"]]
+    all_segs = transcript["segments"]
+    ids, starts_mid, ends_mid = _snap_to_sentences(
+        [i for i in item["segment_ids"] if i < len(all_segs)], all_segs
+    )
+    segs = [all_segs[i] for i in ids]
     paras, current, start = [], [], segs[0]["start"]
     for s in segs:
         current.append(s["text"])
@@ -90,6 +126,10 @@ def reconstitute(item: dict, transcript: dict) -> tuple[str, str]:
             current, start = [], s["end"]
     if current:
         paras.append(" ".join(current))
+    if starts_mid:
+        paras[0] = "… " + paras[0]
+    if ends_mid:
+        paras[-1] = paras[-1].rstrip(" ,;:") + " …"
     return "\n\n".join(paras), _fmt_ts(segs[0]["start"])
 
 

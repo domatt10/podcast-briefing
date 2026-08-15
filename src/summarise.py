@@ -17,6 +17,7 @@ import json
 import random
 import re
 import time
+from bisect import bisect_right
 from datetime import date
 
 from google import genai
@@ -108,6 +109,8 @@ Return AT MOST 6 items from any one episode, and usually far fewer. You are sele
 
 # Style for "why" — plain English, spoken register
 
+NEVER begin a "why" with "This ..." — no "This explains", "This provides", "This shows", "This highlights", "This indicates". Those describe the item instead of telling the reader the thing. Begin with WHO DID OR SAID WHAT: "The former chief whip explains how No 10 tracks wavering MPs", not "This provides institutional memory about whipping operations". Same for "The discussion covers ..." and "The government's approach involves ..." — say what actually happened.
+
 Write each "why" the way you'd flag it to a colleague out loud: short sentences, plain words, active voice. Unpack dense ideas rather than compressing them. No corporate or policy-memo language — never "provides insider context", "signals a shift", "landscape", "stakeholders", "prioritisation direction". Say who did what and why the reader should care. ("The host is inside government right now, running GB Energy's £1bn supply-chain fund" beats "Reveals he is currently seconded into government to lead the design and delivery of...").
 
 # THE CARDINAL RULE — segment IDs only
@@ -115,6 +118,10 @@ Write each "why" the way you'd flag it to a colleague out loud: short sentences,
 Point to passages by their segment ID numbers. NEVER copy, quote, or rewrite transcript text in your response — the exact wording is reconstituted from your IDs by the pipeline. "segment_ids" must be a consecutive run covering the passage.
 
 "segment_ids" MUST be an unbroken consecutive run — [41, 42, 43], never [41, 43, 45]. A quote is continuous speech; skipping segments would splice together things that were never said together. If the passage you want has irrelevant chat in the middle, either pick the tighter consecutive run that carries the point, or return two separate items.
+
+"anchor" is the ONE exception to the no-copying rule, and it is not a quote: copy the first six to ten words of your FIRST segment exactly as they appear. It is a locator, never shown to the reader — the pipeline uses it to check your segment IDs really point at the passage you are describing, and to correct them if they don't. Getting it exactly right matters more than getting it short.
+
+Prefer a passage that BEGINS AT THE START OF A SENTENCE. These transcripts are chopped into segments mid-flow, so check whether your first segment starts mid-sentence; if it does and the point survives, start one segment later or earlier so the quote opens cleanly.
 
 Length: the reader is a fast reader who prefers richness, so there is no hard ceiling — give a significant passage the room it genuinely needs (commonly 3-12 segments, more when the material really warrants it). Start where the point starts and end where it lands.
 
@@ -131,6 +138,7 @@ Choose the passage where the point is made most CLEANLY. These are unscripted co
       "stream": "energy_desnz",         // one of the five streams above
       "why": "one plain-English line (see style rule): why this matters to this reader; include the stated basis of any prediction",
       "segment_ids": [41, 42, 43],
+      "anchor": "the first six to ten words of segment 41, copied exactly",
       "institutional_memory": false
     }}
   ]
@@ -197,6 +205,53 @@ def _call_with_backoff(client, model: str, prompt: str) -> str:
             wait = (2**attempt) + random.uniform(0, 2)
             print(f"[summarise] transient {e.code}, retry {attempt}/{MAX_ATTEMPTS - 1} in {wait:.0f}s")
             time.sleep(wait)
+
+
+MIN_ANCHOR_CHARS = 18  # shorter locators match by accident
+
+
+def _norm(text: str) -> str:
+    return " ".join(re.sub(r"[^a-z0-9 ]+", " ", text.lower()).split())
+
+
+def repair_anchors(items: list[dict], segments: list[dict]) -> dict:
+    """Use each item's anchor to check — and if necessary CORRECT — its segment
+    IDs, so a quote always contains the passage the note describes.
+
+    The model gives us two independent things: what it means (the note plus a
+    short locator) and where it thinks that is (segment IDs). When they disagree
+    it is nearly always an indexing slip, so we trust the locator and re-point
+    the quote. Nothing is ever dropped: an anchor we cannot find leaves the item
+    exactly as it came, because a slightly mismatched item beats a missing one
+    (Dom's call, 2026-08-15). The anchor is never shown to the reader — the quote
+    is still reconstituted from real transcript segments either way.
+    """
+    seg_norm = [_norm(s["text"]) for s in segments]
+    full, offsets, pos = [], [], 0
+    for t in seg_norm:
+        full.append(t)
+        offsets.append(pos)
+        pos += len(t) + 1
+    haystack = " ".join(full)
+
+    stats = {"ok": 0, "repaired": 0, "unlocatable": 0, "no_anchor": 0}
+    for item in items:
+        anchor = _norm(item.get("anchor") or "")
+        if len(anchor) < MIN_ANCHOR_CHARS:
+            stats["no_anchor"] += 1
+            continue
+        ids = item["segment_ids"]
+        if anchor in " ".join(seg_norm[i] for i in ids if i < len(seg_norm)):
+            stats["ok"] += 1
+            continue
+        at = haystack.find(anchor)
+        if at < 0:
+            stats["unlocatable"] += 1  # keep the item unchanged
+            continue
+        start = bisect_right(offsets, at) - 1
+        item["segment_ids"] = list(range(start, min(start + len(ids), len(segments))))
+        stats["repaired"] += 1
+    return stats
 
 
 MAX_SIGNIFICANT_PER_EPISODE = 3
@@ -270,6 +325,7 @@ def _validate(raw: str, n_segments: int) -> dict:
             reasons.append(why)
             continue
         item["institutional_memory"] = bool(item.get("institutional_memory", False))
+        item["anchor"] = item.get("anchor") if isinstance(item.get("anchor"), str) else ""
         items.append(item)
     if reasons:
         print(f"[summarise] item issues: {', '.join(reasons)}")
@@ -415,7 +471,14 @@ def summarise(transcript: dict, gemini_cfg: dict) -> dict:
         for attempt in (1, 2):
             try:
                 print(f"[summarise] calling {model} ({n} segments)")
-                return _validate(_call_with_backoff(client, model, prompt), n)
+                result = _validate(_call_with_backoff(client, model, prompt), n)
+                stats = repair_anchors(result["items"], transcript["segments"])
+                if stats["repaired"] or stats["unlocatable"]:
+                    print(
+                        f"[summarise] anchors: {stats['ok']} ok, {stats['repaired']} re-pointed, "
+                        f"{stats['unlocatable']} unlocatable (kept as-is), {stats['no_anchor']} missing"
+                    )
+                return result
             except (json.JSONDecodeError, AttributeError, TypeError) as e:
                 print(f"[summarise] {model}: unparseable response (attempt {attempt})")  # spec §9
                 last_error = e
