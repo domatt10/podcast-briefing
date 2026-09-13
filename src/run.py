@@ -14,6 +14,7 @@ import argparse
 import json
 import os
 import sys
+import time
 from datetime import date, datetime, timedelta, timezone
 
 from config import archive_dir, data_dir, load_config
@@ -116,7 +117,16 @@ def main() -> None:
         "--whisper-model",
         help="override config.toml whisper model (e.g. 'small' for fast local tests)",
     )
+    ap.add_argument(
+        "--max-minutes",
+        type=int,
+        default=210,
+        help="stop STARTING new episodes past this; send what's done and leave the "
+        "rest for tomorrow. Keeps a heavy morning inside the job timeout (300 min) "
+        "with room for the episode in flight, the email and the archive push.",
+    )
     args = ap.parse_args()
+    started = time.time()
 
     cfg = load_config()
     archive = archive_dir(cfg)
@@ -133,8 +143,19 @@ def main() -> None:
     new_eps, footer = gather_new_episodes(cfg, state)
     print(f"[pipeline] {len(new_eps)} new episode(s) to process")
 
-    briefed, failed = [], []
+    briefed, failed, deferred = [], [], []
     for ep in new_eps:
+        # TIME BUDGET. Transcription runs at ~2x realtime, so a 70-minute
+        # episode costs 35 minutes; a heavy morning can exceed the job timeout.
+        # Before this existed, a timed-out run banked NOTHING (state is only
+        # saved after a successful send), so its episodes rolled into the next
+        # day and the backlog compounded: 7 -> 13 -> 16 and stuck, three days
+        # with no briefing (2026-09-11 to 09-13). Now we stop starting new
+        # episodes at the budget, send what we have, and leave the rest for
+        # tomorrow — the same ratchet the backfill uses.
+        if (time.time() - started) / 60 > args.max_minutes:
+            deferred.append(ep)
+            continue
         try:
             briefed.append((ep, process_episode(ep, cfg, archive, scratch, args.whisper_model)))
         except Exception as e:
@@ -179,6 +200,12 @@ def main() -> None:
 
     for ep in failed:
         footer.append(f"Couldn't process “{ep.title}” ({ep.show}) - will retry next run")
+    if deferred:
+        shows = ", ".join(sorted({ep.show for ep in deferred}))
+        footer.append(
+            f"Ran out of time for {len(deferred)} episode(s) ({shows}) - they're first in line tomorrow"
+        )
+        print(f"[pipeline] time budget reached - deferring {len(deferred)} episode(s) to tomorrow")
 
     # ONE EMAIL PER DAY, hard rule: a cron that fires hours late after a
     # briefing already went out must not send again. Work isn't wasted —
