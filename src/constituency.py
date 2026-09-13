@@ -26,7 +26,7 @@ from bs4 import BeautifulSoup
 from config import archive_dir, load_config
 from emailer import send_email
 from news import _article_text
-from summarise import _call_with_backoff, genai
+from summarise import _call_with_backoff, genai, model_ladder
 
 CATEGORIES = ("planning", "mp_politics", "community", "ports_supply", "grid")
 
@@ -154,9 +154,7 @@ def select_items(geo: dict, items: list[dict], previous: str, gemini_cfg: dict) 
     client = genai.Client()
     # Same model-fallback ladder as the daily briefing: Google's free tier
     # throws transient 503s and occasionally reshuffles which models it includes.
-    models = [gemini_cfg["model"]]
-    if gemini_cfg.get("fallback_model") and gemini_cfg["fallback_model"] not in models:
-        models.append(gemini_cfg["fallback_model"])
+    models = model_ladder(gemini_cfg)
     data, last_err = None, None
     for model in models:
         try:

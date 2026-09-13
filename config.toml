@@ -15,7 +15,11 @@ glossary = "DESNZ, NESO, SSEP, Ofgem, CfD, contracts for difference, allocation 
 # (2026-07: Pro models are paid-only — free tier is the Flash family. Verified
 # empirically: 2.5-pro returns 429 "limit: 0" on a free key.)
 model = "gemini-3.5-flash"
-fallback_model = "gemini-2.5-flash"
+# Free-tier quota is 20 requests PER DAY PER MODEL, so this ladder is a quota
+# pool as much as a fallback: three rungs = ~60 calls a day. A 16-episode
+# morning needs ~20 on its own, which is how 2026-09-13 ran dry. Verified
+# available on a free key 2026-09-13; re-probe if Google retires one.
+fallback_models = ["gemini-2.5-flash", "gemini-3.5-flash-lite"]
 
 [email]
 smtp_host = "smtp.gmail.com"

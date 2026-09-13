@@ -222,6 +222,26 @@ def _call_with_backoff(client, model: str, prompt: str) -> str:
 MIN_ANCHOR_CHARS = 18  # shorter locators match by accident
 
 
+def model_ladder(gemini_cfg: dict) -> list[str]:
+    """Models to try in order.
+
+    This is a QUOTA strategy as much as a resilience one: the free tier's limit
+    is 20 requests per day PER MODEL, so every extra rung buys another 20 calls,
+    not just cover for an outage. A heavy morning (16 episodes + clustering +
+    top line + news selection) needs about 20 on its own, which is exactly how
+    the pipeline stalled on 2026-09-13. Keep at least three rungs.
+    """
+    models = [gemini_cfg["model"]]
+    extra = gemini_cfg.get("fallback_models")
+    if not extra:
+        one = gemini_cfg.get("fallback_model")
+        extra = [one] if one else []
+    for m in extra:
+        if m and m not in models:
+            models.append(m)
+    return models
+
+
 def _norm(text: str) -> str:
     return " ".join(re.sub(r"[^a-z0-9 ]+", " ", text.lower()).split())
 
@@ -375,9 +395,7 @@ def cluster_items(flat: list[tuple[dict, dict]], gemini_cfg: dict) -> list[list[
     listing = "\n".join(
         f"[{i}] ({t['metadata']['show']}) {item['why']}" for i, (item, t) in enumerate(flat)
     )
-    models = [gemini_cfg["model"]]
-    if gemini_cfg.get("fallback_model") and gemini_cfg["fallback_model"] not in models:
-        models.append(gemini_cfg["fallback_model"])
+    models = model_ladder(gemini_cfg)
 
     client = genai.Client()
     raw = None
@@ -471,10 +489,7 @@ def summarise(transcript: dict, gemini_cfg: dict) -> dict:
     prompt = build_prompt(transcript)
     n = len(transcript["segments"])
 
-    models = [gemini_cfg["model"]]
-    fallback = gemini_cfg.get("fallback_model")
-    if fallback and fallback not in models:
-        models.append(fallback)
+    models = model_ladder(gemini_cfg)
 
     # Each model gets two attempts; a bad-JSON retry must fall through to the
     # fallback model, not escape (it used to, costing the whole episode).

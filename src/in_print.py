@@ -25,7 +25,7 @@ from bs4 import BeautifulSoup
 
 from config import ROOT
 from news import _article_text
-from summarise import _baseline, _call_with_backoff, genai
+from summarise import _baseline, _call_with_backoff, genai, model_ladder
 
 MIN_BODY_CHARS = 400  # below this we can't honestly offer an "extended quote"
 
@@ -161,9 +161,7 @@ def fetch_in_print(cfg: dict, archive: Path, state: dict) -> tuple[list[dict], l
         return [], []
     hashes = [c["url_hash"] for c in candidates]
 
-    models = [cfg["gemini"]["model"]]
-    if cfg["gemini"].get("fallback_model") and cfg["gemini"]["fallback_model"] not in models:
-        models.append(cfg["gemini"]["fallback_model"])
+    models = model_ladder(cfg["gemini"])
 
     profile = (ROOT / "profile.md").read_text(encoding="utf-8")
     listing = "\n".join(
