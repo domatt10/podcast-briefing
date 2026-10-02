@@ -67,7 +67,7 @@ jobs:
           BRIEFING_TO: ${{ secrets.BRIEFING_TO }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           ARCHIVE_DIR: ${{ github.workspace }}/archive
-        run: python src/run.py
+        run: python src/run.py --status-file run-status.json
 
       - name: Push archive updates (private repo)
         run: |
@@ -107,6 +107,36 @@ jobs:
             git pull --rebase
           done
           exit 1
+
+      - name: Tripwire — fail the run if no episode survived
+        run: |
+          # Deliberately AFTER the archive push and heartbeat. A total wipeout
+          # must still persist state.json, or the next run re-processes the same
+          # episodes and sends a SECOND briefing (2026-07-29). This step only
+          # flips the job to failure so the /fail ping below fires instead of
+          # the success ping.
+          #
+          # Exists because 30 Sept - 2 Oct 2026 every episode failed (PyAV 19
+          # vs faster-whisper) and the job reported success for three days: the
+          # news layer kept the email looking plausible and the dead-man's
+          # switch never knew. Cause-agnostic on purpose — it catches the next
+          # one whatever breaks.
+          if [ ! -f run-status.json ]; then
+            echo "no status file - nothing to check"
+            exit 0
+          fi
+          cat run-status.json
+          python - <<'PY'
+          import json, sys
+          s = json.load(open("run-status.json"))
+          if s.get("total_episode_failure"):
+              sys.exit(
+                  f"TRIPWIRE: {s.get('new', 0)} episode(s) found, none processed "
+                  f"({s.get('failed', 0)} retryable, {s.get('gave_up', 0)} written off). "
+                  "See the per-episode failures above for the error type and location."
+              )
+          print(f"episode processing healthy ({s.get('briefed', 0)} briefed)")
+          PY
 
       - name: Ping dead-man's-switch (full success only)
         env:

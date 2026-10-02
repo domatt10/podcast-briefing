@@ -1,6 +1,22 @@
-feedparser
-requests
-faster-whisper
-google-genai
-python-dotenv
-beautifulsoup4
+# Direct dependencies. Bounded on purpose: CI installs fresh every run, so an
+# unpinned tree means a release anywhere upstream can change what runs at
+# 03:47 without a single commit here.
+feedparser~=6.0
+requests~=2.34
+faster-whisper==1.2.1
+google-genai~=2.27
+python-dotenv~=1.2
+beautifulsoup4~=4.15
+
+# LOAD-BEARING TRANSITIVE PIN — do not remove without testing a real episode.
+#
+# faster-whisper 1.2.1 declares only "av>=11". PyAV 19.0.0 landed 2026-09-30
+# and broke faster-whisper's decode path: EVERY episode failed with TypeError
+# for three days (30 Sept - 2 Oct) while the run still reported success, so the
+# dead-man's-switch never fired and 11 episodes were written off at the retry
+# cap. Conference week was lost.
+#
+# faster-whisper has no release that supports av 19, so this cap stays until it
+# does. av is the only dependency faster-whisper leaves unbounded — ctranslate2,
+# onnxruntime and tokenizers all carry upper bounds of their own.
+av<19

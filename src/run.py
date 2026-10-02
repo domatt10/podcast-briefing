@@ -16,6 +16,7 @@ import os
 import sys
 import time
 from datetime import date, datetime, timedelta, timezone
+from pathlib import Path
 
 from config import archive_dir, data_dir, load_config
 from download import download_audio, slug
@@ -43,6 +44,45 @@ from summarise import cluster_items, select_top_line, summarise
 from transcribe import ensure_readable, transcribe
 
 EPISODE_RETRY_CAP = 3
+
+
+def is_total_failure(n_new: int, n_briefed: int, n_failed: int, n_gave_up: int) -> bool:
+    """True when there was podcast work to do and none of it survived.
+
+    Not 'some episodes failed' — that is normal and the footer covers it. This
+    is the shape of a systemic break: a dependency, the API, the audio host.
+    A quiet day (no new episodes) is healthy, and a day where everything was
+    deferred by the time budget is healthy too — the work is banked, not lost.
+    """
+    return bool(n_new) and not n_briefed and bool(n_failed or n_gave_up)
+
+
+def _innermost(exc: BaseException) -> str:
+    """'file.py:123' for the deepest frame in the traceback, or '?'.
+
+    Deliberately location only — never the exception message, which for a
+    Gemini error can echo back the prompt, and the prompt contains transcript
+    text. These logs are public (spec §7).
+    """
+    tb, where = exc.__traceback__, "?"
+    while tb:
+        where = f"{Path(tb.tb_frame.f_code.co_filename).name}:{tb.tb_lineno}"
+        tb = tb.tb_next
+    return where
+
+
+def write_status(path: str | None, **fields) -> None:
+    """Machine-readable outcome for CI to inspect AFTER the archive push.
+
+    Why a file and not an exit code: exiting non-zero from this script skips
+    the workflow's push step, so state.json would never persist and the next
+    run would re-process and re-email everything (that is how 2026-07-29
+    produced two briefings). The workflow reads this instead and fails the job
+    once the push is safely done. A missing file means 'nothing to report'.
+    """
+    if not path:
+        return
+    Path(path).write_text(json.dumps(fields, indent=1), encoding="utf-8")
 
 
 def gather_new_episodes(cfg, state) -> tuple[list, list[str]]:
@@ -125,6 +165,10 @@ def main() -> None:
         "rest for tomorrow. Keeps a heavy morning inside the job timeout (300 min) "
         "with room for the episode in flight, the email and the archive push.",
     )
+    ap.add_argument(
+        "--status-file",
+        help="write a JSON outcome summary here for CI to check after the push",
+    )
     args = ap.parse_args()
     started = time.time()
 
@@ -143,7 +187,7 @@ def main() -> None:
     new_eps, footer = gather_new_episodes(cfg, state)
     print(f"[pipeline] {len(new_eps)} new episode(s) to process")
 
-    briefed, failed, deferred = [], [], []
+    briefed, failed, deferred, gave_up = [], [], [], []
     for ep in new_eps:
         # TIME BUDGET. Transcription runs at ~2x realtime, so a 70-minute
         # episode costs 35 minutes; a heavy morning can exceed the job timeout.
@@ -160,12 +204,50 @@ def main() -> None:
             briefed.append((ep, process_episode(ep, cfg, archive, scratch, args.whisper_model)))
         except Exception as e:
             tries = record_episode_failure(state, ep)
-            print(f"[pipeline] FAILED '{ep.title}' ({type(e).__name__}) - attempt {tries}")
+            # Log WHERE it broke, not just the type. A filename and line number
+            # carry no transcript text, so this stays inside the public-log
+            # rule — and it is the difference between diagnosing a dependency
+            # break in minutes and bisecting pip output for an afternoon.
+            print(
+                f"[pipeline] FAILED '{ep.title}' "
+                f"({type(e).__name__} at {_innermost(e)}) - attempt {tries}"
+            )
             if tries >= EPISODE_RETRY_CAP:
                 mark_processed(state, ep)
+                gave_up.append(ep)
                 footer.append(f"Gave up on “{ep.title}” ({ep.show}) after {tries} attempts")
             else:
                 failed.append(ep)
+
+    # FAIL LOUD ON A TOTAL WIPEOUT (spec §9).
+    #
+    # Per-episode error handling is right: one bad download must never sink the
+    # briefing. But it also meant a 100% failure rate still reported success.
+    # PyAV 19 broke faster-whisper's decoder on 2026-09-30 and every episode
+    # failed with TypeError for three days while the job stayed green, the
+    # news and in-print layers kept the email looking normal, and Healthchecks
+    # kept receiving success pings. If there was podcast work and none of it
+    # survived, the run is not healthy, whatever the email looks like.
+    total_wipeout = is_total_failure(len(new_eps), len(briefed), len(failed), len(gave_up))
+    if total_wipeout:
+        print(
+            f"[pipeline] TOTAL FAILURE: {len(new_eps)} episode(s) found, none processed "
+            f"({len(failed)} retryable, {len(gave_up)} written off)"
+        )
+        footer.insert(
+            0,
+            f"No podcasts could be processed at all today — {len(new_eps)} episode(s) "
+            "failed. The pipeline needs attention; this email is news-only.",
+        )
+    write_status(
+        args.status_file,
+        new=len(new_eps),
+        briefed=len(briefed),
+        failed=len(failed),
+        gave_up=len(gave_up),
+        deferred=len(deferred),
+        total_episode_failure=total_wipeout,
+    )
 
     # News layer (agent brief A.1) — archive-only, never fatal to the briefing.
     try:

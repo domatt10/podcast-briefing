@@ -10,6 +10,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 from render import build_stories, reconstitute, render_briefing
+from run import _innermost, is_total_failure
 from summarise import MAX_SIGNIFICANT_PER_EPISODE, _enforce_tier_budget, repair_anchors
 
 
@@ -205,6 +206,42 @@ def test_unlocatable_anchor_never_drops_the_item():
 def test_render_survives_empty_day():
     _, text, _ = render_briefing("Friday 24 July 2026", [])
     assert "Nothing notable today" in text
+
+
+# --- Total-failure tripwire ---------------------------------------------------
+# Regression guard for 30 Sept - 2 Oct 2026: PyAV 19 broke faster-whisper, every
+# episode failed, and the run reported success for three days because the news
+# layer still produced an email.
+
+
+def test_total_failure_detects_a_wipeout():
+    assert is_total_failure(n_new=24, n_briefed=0, n_failed=13, n_gave_up=11)
+
+
+def test_total_failure_ignores_a_quiet_day():
+    """No new episodes is healthy, not a failure."""
+    assert not is_total_failure(n_new=0, n_briefed=0, n_failed=0, n_gave_up=0)
+
+
+def test_total_failure_ignores_partial_losses():
+    """Some episodes failing is normal; the footer reports it, not the tripwire."""
+    assert not is_total_failure(n_new=10, n_briefed=9, n_failed=1, n_gave_up=0)
+
+
+def test_total_failure_ignores_a_fully_deferred_day():
+    """Time budget deferrals bank the work for tomorrow — nothing is lost."""
+    assert not is_total_failure(n_new=8, n_briefed=0, n_failed=0, n_gave_up=0)
+
+
+def test_innermost_reports_location_and_not_the_message():
+    """Public CI logs: a Gemini error can echo the prompt, and the prompt
+    contains transcript text. Location only."""
+    try:
+        raise TypeError("SECRET transcript text that must never be logged")
+    except TypeError as e:
+        where = _innermost(e)
+    assert where.startswith("test_briefing.py:"), where
+    assert "SECRET" not in where
 
 
 if __name__ == "__main__":
