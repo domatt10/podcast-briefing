@@ -65,6 +65,19 @@ def clear_feed_failure(state: dict, feed_name: str) -> None:
     state.setdefault("feed_failures", {}).pop(feed_name, None)
 
 
+def clear_episode_failure(state: dict, episode) -> None:
+    """Forget an episode's failure count once it has processed cleanly.
+
+    Without this the counter is append-only: an episode that failed once on a
+    flaky download and succeeded next run keeps its record forever. Harmless
+    for retries (the episode is marked processed either way) but it makes the
+    failure list useless as a record of what actually went undelivered — which
+    the catch-up tool reads. Found while recovering the 2026-09-30 break, where
+    the list still held episodes last touched in July.
+    """
+    state.setdefault("episode_failures", {}).pop(episode.key, None)
+
+
 def record_episode_failure(state: dict, episode) -> int:
     """Count processing attempts for one episode; returns the new count.
     The caller gives up (marks processed) after the retry cap."""

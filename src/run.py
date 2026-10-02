@@ -28,6 +28,7 @@ from news import fetch_news
 from politico import fetch_politico
 from render import build_stories, render_briefing, render_fallback, render_quiet
 from state import (
+    clear_episode_failure,
     clear_feed_failure,
     is_processed,
     is_seeded,
@@ -202,6 +203,7 @@ def main() -> None:
             continue
         try:
             briefed.append((ep, process_episode(ep, cfg, archive, scratch, args.whisper_model)))
+            clear_episode_failure(state, ep)
         except Exception as e:
             tries = record_episode_failure(state, ep)
             # Log WHERE it broke, not just the type. A filename and line number

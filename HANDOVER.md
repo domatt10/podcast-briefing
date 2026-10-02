@@ -137,6 +137,8 @@ re-opens the failure.
 | **Unparseable Gemini retry escaped** past the fallback-model handler, killing a whole episode. | Parse errors now fall through to the next model. |
 | **Mis-pointed quotes** (~13%): a note about party purges attached to a quote about farming. | Each item carries an `anchor`; `repair_anchors()` re-points the segment IDs. **Never drops an item** — Dom's explicit call: a slightly mismatched item beats a missing one. |
 | **Whisper mis-hears names**, corrupting quotes and the archive alike. | `config.toml` glossary. Refresh it after a reshuffle alongside `baseline.md`. |
+| **An unpinned transitive dependency broke everything, silently.** PyAV 19 landed 2026-09-30; faster-whisper 1.2.1 asks only for `av>=11`, so CI installed it and every episode failed with `TypeError` for three days (30 Sept – 2 Oct). The job reported **success** throughout: per-episode error handling meant a 100% failure rate still sent an email, because news and in-print were fine. Healthchecks got success pings. 24 episodes undelivered, 11 written off at the retry cap. | `requirements.txt` bounds every direct dependency and hard-caps `av<19`. `run.py:is_total_failure()` writes a status file; `briefing.yml` has a **tripwire step after the archive push** that fails the job on a total wipeout so `/fail` fires. Cause-agnostic — it catches the next one too. |
+| **A silent outage needs a recovery path that doesn't spam the reader.** The backlog's summaries must reach Dom but must NOT arrive as "Daily podcast summary" — that subject is auto-forwarded to his manager. | `src/catchup.py`: summarises recovered transcripts and sends **one** email under a different brand, never touching `last_email_at`. See §7. |
 
 ---
 
@@ -173,7 +175,27 @@ ARCHIVE_DIR=/path/to/scratch ./.venv/Scripts/python.exe src/run.py --whisper-mod
 Always point `ARCHIVE_DIR` at a **scratch** copy when testing. `--whisper-model
 small` keeps local runs fast.
 
-**Tests**: `./.venv/Scripts/python.exe tests/test_briefing.py` — offline.
+**Tests**: `./.venv/Scripts/python.exe tests/test_briefing.py` — offline, 19 of them.
+
+**Recovering a backlog after an outage** (the 2026-09-30 drill, in order):
+
+1. Fix the cause and push it — the backfill installs the same
+   `requirements.txt`, so it fails the same way until you do.
+2. `gh workflow run backfill.yml -f days=7 -f chunks=12` — transcribes in a
+   parallel matrix (~1 h for 24 episodes; serially it would exceed the job
+   timeout). Whisper only, no Gemini, no email.
+3. `git -C ../podcast-archive pull`
+4. `ARCHIVE_DIR=../podcast-archive ./.venv/Scripts/python.exe src/catchup.py
+   --dry-run` then without `--dry-run`. Sends **one** email branded "Archive
+   catch-up", marks the episodes processed, indexes them, clears their failure
+   records. Commit and push the archive afterwards.
+
+`catchup.py` recovers only episodes that both have a recorded failure **and**
+have no `index.md` line. That second condition is load-bearing: `index.md` is
+appended only after a successful send, so it is the delivery ledger.
+`episode_failures` alone is not — it was append-only until 2026-10-02, so it
+still holds counters for episodes that failed once, succeeded, and were
+delivered months ago. `--since` is a further guard.
 
 **Gemini quota is 20/day/model.** Prefer offline verification (cached
 `items.json` + render) over re-running the model; a testing spree exhausts the
