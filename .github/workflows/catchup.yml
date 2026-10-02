@@ -1,0 +1,113 @@
+# Archive catch-up — deliver a recovered backlog in its OWN email.
+#
+# Separate from the daily briefing on purpose: that subject is auto-forwarded
+# to Dom's manager, and a catch-up is for him alone. catchup.py swaps the brand
+# for one send and never touches last_email_at, so the daily email is
+# unaffected whichever order they run in.
+#
+# Whisper is never invoked here — transcripts must already exist (backfill.yml
+# puts them there). This job only summarises, renders and sends, so it is
+# minutes, not hours.
+#
+# PUBLIC LOGS: counts, titles and dates only — never transcript text.
+
+name: Archive catch-up
+
+on:
+  workflow_dispatch:
+    inputs:
+      max_episodes:
+        description: "Max episodes this pass (0 = all). Keeps a pass inside the Gemini daily quota."
+        default: "12"
+      since:
+        description: "Ignore failures published before this ISO date"
+        default: "2026-09-29"
+      dry_run:
+        description: "true = report only, send nothing"
+        default: "false"
+  schedule:
+    # TEMPORARY — delete this block once the 30 Sept - 2 Oct backlog is cleared.
+    # Two passes of 12 for the 24 recovered episodes: Sat 3 and Sun 4 Oct 2026.
+    # Split at Dom's request so neither pass can exhaust the Gemini free tier
+    # (20 requests/day PER MODEL) and starve the real briefing.
+    #
+    # Safe if it fires again: with nothing undelivered, catchup.py prints
+    # "nothing to recover" and exits without sending. 09:20 UTC is clear of both
+    # the 03:47 external trigger and the 06:17 backup.
+    - cron: "20 9 * * 6,0"
+
+concurrency:
+  # SHARED with the daily briefing deliberately: two writers pushing to the
+  # archive at once is what lost state.json and sent a duplicate briefing on
+  # 2026-07-29. This queues behind the briefing instead of racing it.
+  group: briefing
+  cancel-in-progress: false
+
+permissions:
+  contents: read   # the archive push goes via the deploy key, not GITHUB_TOKEN
+
+jobs:
+  catchup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Check out code (public repo)
+        uses: actions/checkout@v4
+
+      - name: Check out archive (private repo, via deploy key)
+        env:
+          DEPLOY_KEY: ${{ secrets.ARCHIVE_DEPLOY_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/archive_key
+          chmod 600 ~/.ssh/archive_key
+          ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null
+          GIT_SSH_COMMAND="ssh -i ~/.ssh/archive_key -o IdentitiesOnly=yes" \
+            git clone --depth 1 git@github.com:domatt10/podcast-briefing-archive.git archive
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Send catch-up
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          BRIEFING_FROM: ${{ secrets.BRIEFING_FROM }}
+          BRIEFING_TO: ${{ secrets.BRIEFING_TO }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          ARCHIVE_DIR: ${{ github.workspace }}/archive
+          MAX_EPISODES: ${{ github.event.inputs.max_episodes || '12' }}
+          SINCE: ${{ github.event.inputs.since || '2026-09-29' }}
+          DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
+        run: |
+          args="--max-episodes $MAX_EPISODES --since $SINCE"
+          if [ "$DRY_RUN" = "true" ]; then args="$args --dry-run"; fi
+          echo "running: catchup.py $args"
+          python src/catchup.py $args
+
+      - name: Push archive updates (private repo)
+        run: |
+          cd archive
+          git config user.name "briefing-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "archive unchanged"
+            exit 0
+          fi
+          git commit -m "Catch-up: $(date -u +%Y-%m-%dT%H:%MZ)"
+          # Retry: losing this push would lose the items.json, the index lines
+          # and the cleared failure records, so the next pass would re-send the
+          # same episodes.
+          export GIT_SSH_COMMAND="ssh -i ~/.ssh/archive_key -o IdentitiesOnly=yes"
+          for i in 1 2 3; do
+            git push && exit 0
+            echo "push rejected (attempt $i) - rebasing onto the other writer"
+            git pull --rebase
+          done
+          exit 1

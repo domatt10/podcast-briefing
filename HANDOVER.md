@@ -185,10 +185,18 @@ small` keeps local runs fast.
    parallel matrix (~1 h for 24 episodes; serially it would exceed the job
    timeout). Whisper only, no Gemini, no email.
 3. `git -C ../podcast-archive pull`
-4. `ARCHIVE_DIR=../podcast-archive ./.venv/Scripts/python.exe src/catchup.py
-   --dry-run` then without `--dry-run`. Sends **one** email branded "Archive
-   catch-up", marks the episodes processed, indexes them, clears their failure
-   records. Commit and push the archive afterwards.
+4. **Claim the backlog before the next 03:47 run**:
+   `src/catchup.py --claim`, then commit and push the archive. Without this the
+   daily briefing finds 24 unprocessed episodes with transcripts sitting ready,
+   summarises the lot, and sends the whole backlog in the email that gets
+   **auto-forwarded to Dom's manager**. Claiming marks them processed but keeps
+   the failure records, so the catch-up can still find them.
+5. Deliver it with `catchup.yml` (or `src/catchup.py` locally). Use
+   `--max-episodes` to split a big backlog across days: 24 summarise calls plus
+   clustering will not fit the Gemini free tier alongside a normal briefing.
+   Each pass sends **one** email branded "Archive catch-up", indexes what it
+   sent and clears those failure records, so the next pass picks up cleanly.
+   `--dry-run` first, always — it is what caught the stale-failure bug below.
 
 `catchup.py` recovers only episodes that both have a recorded failure **and**
 have no `index.md` line. That second condition is load-bearing: `index.md` is

@@ -148,6 +148,14 @@ def main() -> None:
     )
     ap.add_argument("--dry-run", action="store_true", help="report what would be sent, email nothing")
     ap.add_argument(
+        "--claim", action="store_true",
+        help="mark the recovery set processed and exit, emailing nothing. Run this as "
+        "soon as the transcripts land: otherwise the next daily briefing sees 24 "
+        "unprocessed episodes with transcripts sitting ready, summarises the lot, and "
+        "sends the whole backlog in the email that gets auto-forwarded. Failure "
+        "records are kept, so the catch-up can still find them afterwards.",
+    )
+    ap.add_argument(
         "--since", default="2026-09-29",
         help="ignore failures published before this ISO date. Guard against a catch-up "
         "reaching further back than the break it is recovering (default: the day "
@@ -165,6 +173,18 @@ def main() -> None:
         print("[catchup] nothing to recover - no recorded episode failures")
         return
     print(f"[catchup] {len(eps)} episode(s) in the recovery set")
+
+    if args.claim:
+        # Take the backlog out of the daily pipeline's sight WITHOUT delivering
+        # it. mark_processed only touches state['processed']; the failure record
+        # and the absent index.md line are what the catch-up keys off, so both
+        # survive and a later pass still finds these episodes.
+        for ep in eps:
+            mark_processed(state, ep)
+        save_state(state, state_file)
+        print(f"[catchup] claimed {len(eps)} episode(s) - the daily briefing will now skip them")
+        print("[catchup] commit and push the archive, then run the catch-up when ready")
+        return
 
     pending = [ep for ep in eps if not transcript_path(archive, ep).exists()]
     if pending:
