@@ -134,6 +134,20 @@ name = "Bright Blue"
 url = "https://www.brightblue.org.uk/feed/"
 kind = "research"
 
+# IFS publishes no usable RSS, so this is a Google News site: query — the only
+# route in. headline_only because those links redirect to a cookie-consent
+# page: extraction would return Google's cookie policy rather than the paper,
+# and at ~900 characters it clears MIN_BODY_CHARS, so the quote stage would
+# publish it as an extended quote attributed to the IFS. So: no extraction, no
+# quote, flag and link only. Worth a slot anyway — four weeks from a Budget,
+# "IFS finds the triple lock saving won't fund social care" earns its line
+# without a quote attached.
+[[print_feeds]]
+name = "IFS"
+url = "https://news.google.com/rss/search?q=site%3Aifs.org.uk&hl=en-GB&gl=GB&ceid=GB:en"
+kind = "research"
+headline_only = true
+
 [[print_feeds]]
 name = "The Conversation (UK politics)"
 url = "https://theconversation.com/uk/politics/articles.atom"

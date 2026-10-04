@@ -9,7 +9,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from in_print import _looks_like_boilerplate, hashes_to_mark
+from in_print import _looks_like_boilerplate, clean_title, hashes_to_mark
 from render import build_stories, reconstitute, render_briefing
 from run import _innermost, is_total_failure
 from summarise import MAX_SIGNIFICANT_PER_EPISODE, _enforce_tier_budget, repair_anchors
@@ -264,6 +264,25 @@ def test_one_cookie_mention_in_a_real_article_is_tolerated():
         "the regulator said, in a ruling that affects every UK news website."
     )
     assert not _looks_like_boilerplate(body)
+
+
+def test_google_news_publisher_suffix_is_stripped():
+    raw = "What do you need to know about the triple lock? - IFS | Institute for Fiscal Studies"
+    assert (
+        clean_title(raw, "IFS | Institute for Fiscal Studies")
+        == "What do you need to know about the triple lock?"
+    )
+
+
+def test_clean_title_leaves_ordinary_titles_alone():
+    raw = "Burnham should follow triple lock reforms with more boldness"
+    assert clean_title(raw, "Institute for Government") == raw
+    assert clean_title(raw, "") == raw
+
+
+def test_clean_title_never_empties_a_title():
+    """A headline that IS just the publisher name must survive intact."""
+    assert clean_title("IFS", "IFS") == "IFS"
 
 
 def test_unselected_research_stays_eligible_but_commentary_does_not():

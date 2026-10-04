@@ -113,6 +113,19 @@ def _paragraphs(body: str) -> list[str]:
     return [p.strip() for p in body.split("\n\n") if len(p.strip()) > 40]
 
 
+def clean_title(raw: str, source_title: str) -> str:
+    """Strip the ' - <Publisher>' suffix Google News appends to every title.
+
+    Pure padding in the candidate listing — the source is already shown in its
+    own column — and it would otherwise eat into the model's view of 25-odd
+    headlines at once.
+    """
+    suffix = f" - {source_title}"
+    if source_title and raw.endswith(suffix):
+        return raw[: -len(suffix)].strip() or raw
+    return raw
+
+
 def fetch_candidates(cfg: dict, state: dict) -> list[dict]:
     """Fresh, unseen items across all print feeds.
 
@@ -147,7 +160,11 @@ def fetch_candidates(cfg: dict, state: dict) -> list[dict]:
                     {
                         "source": feed_cfg["name"],
                         "kind": kind,
-                        "title": e.get("title", "(untitled)").strip(),
+                        "headline_only": bool(feed_cfg.get("headline_only")),
+                        "title": clean_title(
+                            e.get("title", "(untitled)").strip(),
+                            (e.get("source") or {}).get("title", ""),
+                        ),
                         "url": link,
                         "published": when.date().isoformat(),
                         "summary": summary[:280],
@@ -262,7 +279,10 @@ def fetch_in_print(cfg: dict, archive: Path, state: dict) -> tuple[list[dict], l
             continue
         per_source[item["source"]] = per_source.get(item["source"], 0) + 1
         why = pick.get("why", "").strip() or item["title"]
-        body = _ensure_body(item)
+        # headline_only sources are aggregator links: following them fetches a
+        # consent page, not the piece. Skip extraction entirely rather than
+        # relying on the boilerplate guard to catch it afterwards.
+        body = "" if item["headline_only"] else _ensure_body(item)
         quote = None
         if len(body) >= MIN_BODY_CHARS:
             paras = _paragraphs(body)
@@ -294,9 +314,15 @@ def fetch_in_print(cfg: dict, archive: Path, state: dict) -> tuple[list[dict], l
         dest = archive / "news" / "in-print" / f"{item['published']}_{item['url_hash'][:8]}.md"
         if not dest.exists():
             dest.parent.mkdir(parents=True, exist_ok=True)
+            note = (
+                "- **Full text:** not captured — aggregator link, headline and "
+                "snippet only\n"
+                if item["headline_only"]
+                else ""
+            )
             dest.write_text(
                 f"# {item['title']}\n\n- **Source:** {item['source']} (reported news / analysis)\n"
-                f"- **Date:** {item['published']}\n- **URL:** {item['url']}\n"
+                f"- **Date:** {item['published']}\n- **URL:** {item['url']}\n{note}"
                 f"- **Briefing note:** {why}\n\n{body or item['summary']}\n",
                 encoding="utf-8",
             )

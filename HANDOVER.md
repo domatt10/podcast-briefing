@@ -130,6 +130,15 @@ significant report that loses a busy news day gets another look. Daily
 commentary stays one-shot. The prompt judges research on its FINDING, not on
 what publishing it signals — the opposite of how it reads comment pieces.
 
+**`headline_only = true` exists for sources with no usable RSS.** IFS is
+reached through a Google News `site:` query, whose links redirect to a consent
+page. The flag skips body extraction entirely — flag and link, no quote —
+rather than trusting `_looks_like_boilerplate()` to catch it after the fact.
+`clean_title()` strips the " - <Publisher>" suffix Google News appends. Use this
+sparingly: a flag-only item competes for the same six slots as a fully quoted
+one, so it has to be worth a slot on its finding alone. ECIU and IPPR are
+reachable the same way if ever wanted; IPPR's feed carries job ads.
+
 **Check research feeds for RECENCY, not just that they parse.** Rejected after
 testing, so don't re-add without re-checking: UKERC (649 entries, every title
 empty), Cornwall Insight (staff bio pages and a "Form test page"), Green
