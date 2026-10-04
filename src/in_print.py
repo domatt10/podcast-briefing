@@ -42,7 +42,11 @@ piece only if it adds something the baseline doesn't already give him: what a ne
 post-holder will actually do, a consequence still unsettled, or insider detail.
 
 # The mission of this section
-Catch what would OTHERWISE SLIP UNDER HIS RADAR. He already reads Politico Playbook and the mainstream front pages, and gets formal parliamentary monitoring elsewhere — never pick a story those would carry prominently. Prioritise: energy/DESNZ and Treasury signal, machinery-of-government insight, party-internal mood (ConservativeHome and LabourList show what each party is telling itself), and institutional-memory explainers. Comment pieces are fine when they reveal positioning or explain how something actually works — the note should say what the piece SIGNALS, not just what it says.
+Catch what would OTHERWISE SLIP UNDER HIS RADAR. He already reads Politico Playbook and the mainstream front pages, and gets formal parliamentary monitoring elsewhere.
+
+THE TEST IS WHAT A PIECE ADDS, NOT HOW BIG THE STORY IS. Don't pick a piece that just retells what Politico and the front pages have already given him. But prominence alone never disqualifies a piece: if it adds something beyond the news account, it is in, however saturated the coverage. Adding something means a number, a mechanism, a consequence still unsettled, insider detail, what a post-holder will actually do, or an explanation of how something really works. Research on the week's biggest story is usually MORE use to him than research on a quiet one. If you strip out what he already knows and nothing is left, there is no pick.
+
+Prioritise: energy/DESNZ and Treasury signal, machinery-of-government insight, party-internal mood (ConservativeHome and LabourList show what each party is telling itself), and institutional-memory explainers. Comment pieces are fine when they reveal positioning or explain how something actually works — the note should say what the piece SIGNALS, not just what it says.
 
 # Research and reports
 Candidates tagged RESEARCH are think tank and institute output, not journalism. Judge them differently:
