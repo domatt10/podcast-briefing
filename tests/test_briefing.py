@@ -9,6 +9,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
+from in_print import _looks_like_boilerplate, hashes_to_mark
 from render import build_stories, reconstitute, render_briefing
 from run import _innermost, is_total_failure
 from summarise import MAX_SIGNIFICANT_PER_EPISODE, _enforce_tier_budget, repair_anchors
@@ -231,6 +232,55 @@ def test_total_failure_ignores_partial_losses():
 def test_total_failure_ignores_a_fully_deferred_day():
     """Time budget deferrals bank the work for tomorrow — nothing is lost."""
     assert not is_total_failure(n_new=8, n_briefed=0, n_failed=0, n_gave_up=0)
+
+
+# --- "In print" research tier -------------------------------------------------
+
+
+def test_consent_wall_is_not_mistaken_for_an_article():
+    """A Google News redirect yields ~900 chars of cookie policy — over
+    MIN_BODY_CHARS — which the quote stage would attribute to the publisher."""
+    wall = (
+        "We use cookies and data, including IP addresses, to deliver and maintain "
+        "Google services. If you choose to Accept all, we will also use cookies "
+        "and data to develop and improve new services."
+    )
+    assert _looks_like_boilerplate(wall)
+
+
+def test_real_article_is_not_flagged_as_boilerplate():
+    body = (
+        "The Institute for Fiscal Studies said savings from triple lock reform "
+        "could be large but will not be able to fund social care, because the "
+        "commitment was unfunded to begin with. Pensions have risen by over £16bn."
+    )
+    assert not _looks_like_boilerplate(body)
+
+
+def test_one_cookie_mention_in_a_real_article_is_tolerated():
+    """A piece about cookie law shouldn't be discarded; two markers are needed."""
+    body = (
+        "New guidance changes how publishers we use cookies notices must be worded, "
+        "the regulator said, in a ruling that affects every UK news website."
+    )
+    assert not _looks_like_boilerplate(body)
+
+
+def test_unselected_research_stays_eligible_but_commentary_does_not():
+    cands = [
+        {"url_hash": "comm1", "kind": "commentary"},
+        {"url_hash": "res1", "kind": "research"},
+        {"url_hash": "res2", "kind": "research"},
+    ]
+    marked = hashes_to_mark(cands, delivered=["res1"])
+    assert "comm1" in marked, "commentary is one-shot once considered"
+    assert "res1" in marked, "a research item that was delivered is done"
+    assert "res2" not in marked, "an unselected report must get another look"
+
+
+def test_hashes_to_mark_does_not_duplicate():
+    cands = [{"url_hash": "comm1", "kind": "commentary"}]
+    assert hashes_to_mark(cands, delivered=["comm1"]) == ["comm1"]
 
 
 def test_innermost_reports_location_and_not_the_message():

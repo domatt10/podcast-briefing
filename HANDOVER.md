@@ -115,6 +115,29 @@ reshuffle** — the pipeline warns in the log past 45 days.
 **Politico fetch is date-windowed, not unread-based** — the original UNSEEN
 design raced Dom's own reading and lost a week of newsletters.
 
+**"In print" extraction must never trust a consent wall.**
+`_looks_like_boilerplate()` rejects a fetched body that reads as a cookie
+notice. Without it, a Google News link resolves to consent.google.com and
+yields ~900 characters of cookie policy — over `MIN_BODY_CHARS`, so the quote
+stage would have published Google's cookie notice as an extended quote
+attributed to the Institute for Fiscal Studies. Applies to every feed: any
+consent-walled publisher can do the same.
+
+**Research feeds are a distinct tier, not just more feeds.** `kind =
+"research"` in `config.toml` buys a 168-hour lookback instead of 30, and
+exempts *unselected* items from being marked seen (`hashes_to_mark()`), so a
+significant report that loses a busy news day gets another look. Daily
+commentary stays one-shot. The prompt judges research on its FINDING, not on
+what publishing it signals — the opposite of how it reads comment pieces.
+
+**Check research feeds for RECENCY, not just that they parse.** Rejected after
+testing, so don't re-add without re-checking: UKERC (649 entries, every title
+empty), Cornwall Insight (staff bio pages and a "Form test page"), Green
+Alliance (newest 2023, press-clippings feed), Policy Exchange (newest 2020),
+`ifs.org.uk/rss.xml` (one entry, "Home", 2022). **IFS, ECIU and IPPR have no
+usable RSS at any common path** — reachable only via Google News `site:`
+queries, which hit the consent wall above.
+
 **No RAG / GitHub connector for the archive** — it is ~3M words, far beyond a
 Project knowledge base. Grep-style search only.
 

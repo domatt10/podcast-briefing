@@ -44,6 +44,13 @@ post-holder will actually do, a consequence still unsettled, or insider detail.
 # The mission of this section
 Catch what would OTHERWISE SLIP UNDER HIS RADAR. He already reads Politico Playbook and the mainstream front pages, and gets formal parliamentary monitoring elsewhere — never pick a story those would carry prominently. Prioritise: energy/DESNZ and Treasury signal, machinery-of-government insight, party-internal mood (ConservativeHome and LabourList show what each party is telling itself), and institutional-memory explainers. Comment pieces are fine when they reveal positioning or explain how something actually works — the note should say what the piece SIGNALS, not just what it says.
 
+# Research and reports
+Candidates tagged RESEARCH are think tank and institute output, not journalism. Judge them differently:
+- The value is the FINDING, not the positioning. Your note should say what the work actually concludes — the number, the mechanism, the consequence for his patch — never what publishing it signals politically. "The IFS finds the saving is real but can't fund social care" is useful; "the IFS is positioning itself against the plan" is not.
+- Prefer research that settles a contested number or changes a decision over research that restates a known position.
+- Every candidate shows its publication date. Research is listed for longer than news because a report keeps its value: an older report is still worth picking if it is genuinely significant and he is unlikely to have seen it, but where two items are of equal value take the newer one.
+- These feeds also carry recruitment notices, event listings, annual reviews, press-clipping pages and staff profiles. Those are never signal. Skip them.
+
 # Rules
 - Group duplicate coverage of one story into a single pick (all its ids, best-sourced first).
 - Up to {max_items} picks, ranked most significant first. Fewer is fine. Zero is a normal answer.
@@ -58,6 +65,8 @@ Return JSON only:
 """
 
 QUOTE_PROMPT = """From the numbered paragraphs below, choose the passage — 1 to 4 CONSECUTIVE paragraphs — that best delivers this signal to the reader: {why}
+
+If this is research output, take the passage that states the finding most precisely — the number, the conclusion, the mechanism — not the framing or the call to action around it.
 
 THE CARDINAL RULE: never copy, rewrite or quote the text back. Return paragraph numbers only; the exact wording is reconstituted from your IDs by the pipeline.
 
@@ -105,11 +114,21 @@ def _paragraphs(body: str) -> list[str]:
 
 
 def fetch_candidates(cfg: dict, state: dict) -> list[dict]:
-    """Fresh, unseen items across all print feeds."""
-    cutoff = datetime.now(timezone.utc) - timedelta(hours=cfg["in_print"]["lookback_hours"])
+    """Fresh, unseen items across all print feeds.
+
+    Research feeds carry a longer lookback than daily commentary, because a
+    report keeps its value for days and a comment piece does not.
+    """
+    now = datetime.now(timezone.utc)
+    windows = {
+        "commentary": timedelta(hours=cfg["in_print"]["lookback_hours"]),
+        "research": timedelta(hours=cfg["in_print"].get("research_lookback_hours", 168)),
+    }
     seen = state.setdefault("print_seen", {})
     items = []
     for feed_cfg in cfg.get("print_feeds", []):
+        kind = feed_cfg.get("kind", "commentary")
+        cutoff = now - windows.get(kind, windows["commentary"])
         try:
             parsed = feedparser.parse(feed_cfg["url"])
             fresh = 0
@@ -127,6 +146,7 @@ def fetch_candidates(cfg: dict, state: dict) -> list[dict]:
                 items.append(
                     {
                         "source": feed_cfg["name"],
+                        "kind": kind,
                         "title": e.get("title", "(untitled)").strip(),
                         "url": link,
                         "published": when.date().isoformat(),
@@ -136,17 +156,66 @@ def fetch_candidates(cfg: dict, state: dict) -> list[dict]:
                     }
                 )
                 fresh += 1
-            print(f"[in-print] {feed_cfg['name']}: {fresh} fresh")
+            print(f"[in-print] {feed_cfg['name']} ({kind}): {fresh} fresh")
         except Exception as e:
             print(f"[in-print] {feed_cfg['name']} FAILED ({type(e).__name__}) - skipping")
     return items
+
+
+CONSENT_MARKERS = (
+    "we use cookies",
+    "cookies and data",
+    "accept all",
+    "reject all",
+    "manage your privacy",
+    "privacy settings",
+    "before you continue",
+    "enable javascript",
+    "please enable cookies",
+)
+
+
+def _looks_like_boilerplate(body: str) -> bool:
+    """True when extraction returned a consent wall rather than an article.
+
+    This guards the quote stage, so it guards the project's central promise.
+    Found while testing Google News links: they redirect to consent.google.com
+    and extraction returns ~900 characters of cookie policy — comfortably over
+    MIN_BODY_CHARS, so the quote stage would have turned Google's cookie notice
+    into an "extended quote" attributed to the Institute for Fiscal Studies.
+    Any consent-walled publisher can do the same, which is why this applies to
+    every feed rather than to one tier.
+
+    Two markers required: a genuine article about cookie law could plausibly
+    use one of these phrases, but not two in its opening few hundred words.
+    """
+    head = body[:600].lower()
+    return sum(marker in head for marker in CONSENT_MARKERS) >= 2
+
+
+def hashes_to_mark(candidates: list[dict], delivered: list[str]) -> list[str]:
+    """Which candidates count as 'seen' once the briefing has gone out.
+
+    Commentary is one-shot: it was considered, and tomorrow it is yesterday's
+    news either way. Research is NOT. An unselected report keeps its place in
+    the pool for its longer window, because a significant report that loses out
+    to a busy news day deserves another look rather than being discarded for
+    good — which is what used to happen to everything.
+    """
+    marked = [c["url_hash"] for c in candidates if c.get("kind") != "research"]
+    marked += [h for h in delivered if h not in marked]
+    return marked
 
 
 def _ensure_body(item: dict) -> str:
     if len(item.get("body", "")) >= MIN_BODY_CHARS:
         return item["body"]
     try:
-        item["body"] = _article_text(item["url"])
+        fetched = _article_text(item["url"])
+        if _looks_like_boilerplate(fetched):
+            print(f"[in-print] consent wall, not an article: {item['source']} - flagging only")
+            fetched = ""
+        item["body"] = fetched
     except Exception:
         pass
     return item.get("body", "")
@@ -159,13 +228,14 @@ def fetch_in_print(cfg: dict, archive: Path, state: dict) -> tuple[list[dict], l
     candidates = fetch_candidates(cfg, state)
     if not candidates:
         return [], []
-    hashes = [c["url_hash"] for c in candidates]
 
     models = model_ladder(cfg["gemini"])
 
     profile = (ROOT / "profile.md").read_text(encoding="utf-8")
     listing = "\n".join(
-        f"[{i}] {c['title']} | {c['source']} | {c['summary']}" for i, c in enumerate(candidates)
+        f"[{i}] {c['title']} | {c['source']} | {c['published']}"
+        f"{' | RESEARCH' if c.get('kind') == 'research' else ''} | {c['summary']}"
+        for i, c in enumerate(candidates)
     )
     data = _ask(
         models,
@@ -239,7 +309,8 @@ def fetch_in_print(cfg: dict, archive: Path, state: dict) -> tuple[list[dict], l
                 "title": item["title"],
                 "url": item["url"],
                 "published": item["published"],
+                "url_hash": item["url_hash"],  # so a delivered research item is marked seen
             }
         )
     print(f"[in-print] {len(results)} item(s) selected from {len(candidates)} candidates")
-    return results, hashes
+    return results, hashes_to_mark(candidates, [r["url_hash"] for r in results])

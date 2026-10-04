@@ -61,6 +61,11 @@ max_per_feed = 25   # per run — curation, not the firehose
 max_items = 6
 lookback_hours = 30    # a run sees everything published since ~yesterday's run
 max_per_source = 2     # stops the prolific party-political sites crowding out energy
+# Research feeds get a longer window. A think tank report is still worth
+# flagging three days on; a comment piece is not. Pairs with the seen-marking
+# rule in in_print.hashes_to_mark — unselected research keeps its place in the
+# pool for this long instead of being discarded after one look.
+research_lookback_hours = 168
 
 [[print_feeds]]
 name = "Carbon Brief"
@@ -81,10 +86,53 @@ url = "https://labourlist.org/feed/"
 [[print_feeds]]
 name = "Institute for Government"
 url = "https://www.instituteforgovernment.org.uk/rss.xml"
+kind = "research"
 
 [[print_feeds]]
 name = "UK in a Changing Europe"
 url = "https://ukandeu.ac.uk/feed/"
+kind = "research"
+
+# --- Research tier -----------------------------------------------------------
+# Think tank and institute output. kind = "research" gives these the longer
+# lookback and a second chance at selection (see [in_print] above).
+#
+# Every one of these was checked for RECENCY, not just for parsing. Rejected
+# after testing, so don't re-add without re-checking: UKERC (649 entries, every
+# title empty), Cornwall Insight (feed is staff bio pages and a "Form test
+# page"), Green Alliance (newest item 2023, and it's a press-clippings feed),
+# Policy Exchange (newest 2020), IFS/rss.xml (one entry, "Home", 2022).
+#
+# IFS, ECIU and IPPR have NO usable RSS at any common path. They are reachable
+# via Google News site: queries, but those links redirect to a cookie-consent
+# wall that yields ~900 characters of cookie policy — over MIN_BODY_CHARS, so
+# the quote stage would attribute Google's cookie notice to the IFS. Not worth
+# the risk without a headline-only path.
+
+[[print_feeds]]
+name = "Resolution Foundation"
+url = "https://www.resolutionfoundation.org/feed/"
+kind = "research"
+
+[[print_feeds]]
+name = "NIESR"
+url = "https://niesr.ac.uk/feed/"
+kind = "research"
+
+[[print_feeds]]
+name = "E3G"
+url = "https://www.e3g.org/feed/"
+kind = "research"
+
+[[print_feeds]]
+name = "Social Market Foundation"
+url = "https://www.smf.co.uk/feed/"
+kind = "research"
+
+[[print_feeds]]
+name = "Bright Blue"
+url = "https://www.brightblue.org.uk/feed/"
+kind = "research"
 
 [[print_feeds]]
 name = "The Conversation (UK politics)"
