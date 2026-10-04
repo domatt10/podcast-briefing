@@ -27,14 +27,17 @@ on:
         default: "false"
   schedule:
     # TEMPORARY — delete this block once the 30 Sept - 2 Oct backlog is cleared.
-    # Two passes of 12 for the 24 recovered episodes: Sat 3 and Sun 4 Oct 2026.
-    # Split at Dom's request so neither pass can exhaust the Gemini free tier
-    # (20 requests/day PER MODEL) and starve the real briefing.
     #
-    # Safe if it fires again: with nothing undelivered, catchup.py prints
+    # DAILY, not weekend-only. Originally "Sat and Sun" for the two passes of 12,
+    # but the Saturday run fired at 14:18 UTC against a 09:20 schedule — GitHub's
+    # cron is the same 5-hours-late service the daily briefing had to abandon for
+    # an external trigger. Daily means lateness only moves the hour, never skips
+    # a day, and a missed pass retries tomorrow instead of next weekend.
+    #
+    # Safe once the backlog is gone: with nothing undelivered, catchup.py prints
     # "nothing to recover" and exits without sending. 09:20 UTC is clear of both
     # the 03:47 external trigger and the 06:17 backup.
-    - cron: "20 9 * * 6,0"
+    - cron: "20 9 * * *"
 
 concurrency:
   # SHARED with the daily briefing deliberately: two writers pushing to the

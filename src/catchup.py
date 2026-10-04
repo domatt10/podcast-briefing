@@ -60,6 +60,12 @@ def transcript_path(archive, ep):
     return archive / "transcripts" / slug(ep.show) / f"{ep.published}_{ep.stamp}.transcript.json"
 
 
+def items_path(archive, ep):
+    """Where summarise() caches its output. Its ABSENCE is the reliable signal
+    that an episode was never summarised, and so never delivered."""
+    return transcript_path(archive, ep).with_suffix("").with_suffix(".items.json")
+
+
 def summarise_existing(ep, cfg, archive) -> dict | None:
     """Summarise from the archived transcript. None if it isn't there yet.
 
@@ -71,7 +77,7 @@ def summarise_existing(ep, cfg, archive) -> dict | None:
         return None
     transcript = json.loads(tpath.read_text(encoding="utf-8"))
 
-    ipath = tpath.with_suffix("").with_suffix(".items.json")
+    ipath = items_path(archive, ep)
     if ipath.exists():
         cached = json.loads(ipath.read_text(encoding="utf-8"))
         result = cached if isinstance(cached, dict) else {"items": cached, "guests": [], "topics": []}
@@ -82,39 +88,42 @@ def summarise_existing(ep, cfg, archive) -> dict | None:
     return {"transcript": transcript, **result}
 
 
-def delivered_stamps(archive) -> str:
-    """index.md as raw text, to test episode stamps against.
-
-    This file IS the delivery ledger: append_index_line runs only after a
-    briefing has actually been emailed, and is idempotent on the stamp. So a
-    missing stamp means 'never reached the reader', which is the only thing
-    that qualifies an episode for a catch-up.
-    """
-    path = archive / "index.md"
-    return path.read_text(encoding="utf-8") if path.exists() else ""
-
-
-def recovery_set(cfg, state, archive, since: str) -> tuple[list, list[str]]:
+def recovery_set(cfg, state, archive, since: str, ignore_items: bool = False) -> tuple[list, list[str]]:
     """Episodes the pipeline failed on AND never delivered, from the feeds.
 
-    Two conditions, both needed:
+    Three conditions, all needed:
 
-      - a recorded failure, which bounds the set to episodes the pipeline
-        actually choked on rather than the whole archive; and
-      - no index.md line, i.e. never emailed.
+      - a recorded failure, bounding the set to episodes the pipeline actually
+        choked on rather than the whole archive;
+      - published on or after `since`, so a catch-up can never reach back
+        further than the break it is recovering; and
+      - NO items.json beside the transcript, i.e. never summarised, which means
+        it cannot have been delivered.
 
-    The second is essential. state['episode_failures'] is append-only — an
-    episode that failed once and succeeded next run keeps its counter forever,
-    so the raw failure list contains long-delivered episodes going back months.
-    Emailing those would re-send things the reader has already read.
+    On the last one, note what does NOT work. The first version of this tested
+    for a missing index.md line, on the reasoning that run.py appends one only
+    after a successful send. That is true but incomplete: backfill_collect.py
+    ALSO appends index lines, for every transcript it collects. So the moment
+    the backfill recovered these transcripts it gave all 24 episodes index
+    lines, and the Saturday catch-up excluded the entire backlog as "already
+    delivered" and sent nothing. index.md is an ARCHIVE ledger, not a delivery
+    ledger — there is no path that writes items.json without summarising, so
+    that is the honest test.
 
-    `since` is a final guard: a catch-up should never reach back further than
-    the break it is recovering from.
+    Each condition matters. Failure records alone are append-only, so they
+    still hold episodes delivered months ago. items.json alone would sweep in
+    the ~1,000 historical backfill transcripts, which have never been
+    summarised and never should be.
+
+    `ignore_items` drops only the items.json condition, for the one case it
+    gets wrong: a pass that summarised successfully and then failed to SEND
+    leaves items.json behind without delivery, which would otherwise strand
+    those episodes permanently. Still bounded by the failure records and
+    `since`, so it cannot run away.
     """
     wanted = set(state.get("episode_failures", {}))
     if not wanted:
         return [], []
-    index_txt = delivered_stamps(archive)
     found, notes = [], []
     for feed_cfg in cfg["feeds"]:
         try:
@@ -126,14 +135,16 @@ def recovery_set(cfg, state, archive, since: str) -> tuple[list, list[str]]:
         found.extend(
             ep
             for ep in episodes
-            if ep.key in wanted and ep.published >= since and ep.stamp not in index_txt
+            if ep.key in wanted
+            and ep.published >= since
+            and (ignore_items or not items_path(archive, ep).exists())
         )
 
     stale = len(wanted) - len(found)
     if stale > 0:
-        # Mostly counters left on episodes that failed once, succeeded next run
-        # and were delivered normally; some have aged out of their feed window.
-        print(f"[catchup] ignoring {stale} failure record(s) already delivered or out of window")
+        # Counters left on episodes that failed once, succeeded next run and
+        # were delivered normally; plus anything outside the --since window.
+        print(f"[catchup] ignoring {stale} failure record(s) already summarised or out of window")
     found.sort(key=lambda e: (e.published, e.show))
     return found, notes
 
@@ -146,7 +157,18 @@ def main() -> None:
         "20 requests per day PER MODEL, so a very large backlog may need two passes; "
         "anything already summarised is cached and free the second time.",
     )
-    ap.add_argument("--dry-run", action="store_true", help="report what would be sent, email nothing")
+    ap.add_argument(
+        "--dry-run", action="store_true",
+        help="list the episodes that would be recovered, then stop. Costs no quota and "
+        "changes nothing: it stops BEFORE summarising, because the thing worth checking "
+        "is WHICH episodes are selected — that is what caught two selection bugs.",
+    )
+    ap.add_argument(
+        "--ignore-items", action="store_true",
+        help="also consider episodes that already have items.json. Use ONLY to retry "
+        "after a pass summarised successfully but failed to send, which would "
+        "otherwise strand those episodes. Still bounded by failure records and --since.",
+    )
     ap.add_argument(
         "--claim", action="store_true",
         help="mark the recovery set processed and exit, emailing nothing. Run this as "
@@ -168,7 +190,7 @@ def main() -> None:
     state_file = archive / "state.json"
     state = load_state(state_file)
 
-    eps, footer = recovery_set(cfg, state, archive, args.since)
+    eps, footer = recovery_set(cfg, state, archive, args.since, args.ignore_items)
     if not eps:
         print("[catchup] nothing to recover - no recorded episode failures")
         return
@@ -199,6 +221,14 @@ def main() -> None:
         todo = todo[: args.max_episodes]
     if not todo:
         sys.exit("[catchup] no transcripts available yet - nothing to summarise")
+
+    if args.dry_run:
+        print(f"[catchup] would recover {len(todo)} episode(s):")
+        for ep in todo:
+            cached = " (summary cached)" if items_path(archive, ep).exists() else ""
+            print(f"           {ep.published}  {ep.show} - {ep.title}{cached}")
+        print("[catchup] dry run - stopping before summarise. No quota used, nothing changed.")
+        return
 
     recovered, lost = [], []
     for ep in todo:
@@ -241,11 +271,14 @@ def main() -> None:
     print(f"[catchup] {len(stories)} story/stories, top line: {len(top)}")
     print(f"[catchup] subject: {subject}")
 
-    if args.dry_run:
-        print("[catchup] dry run - no email sent, no state changed")
-        return
-
-    send_email(subject, text, html, cfg["email"])
+    try:
+        send_email(subject, text, html, cfg["email"])
+    except Exception as e:
+        print(f"[catchup] SEND FAILED ({type(e).__name__}) - state unchanged, nothing marked")
+        print(f"[catchup] {len(recovered)} episode(s) now have items.json but were NOT delivered,")
+        print("[catchup] so a plain re-run would skip them. Retry with --ignore-items;")
+        print("[catchup] the summaries are cached, so it costs no quota.")
+        raise
     print(f"[catchup] emailed {len(recovered)} episode(s)")
 
     # Only now are they done. Deliberately NOT record_email_sent(): this send is

@@ -139,6 +139,7 @@ re-opens the failure.
 | **Whisper mis-hears names**, corrupting quotes and the archive alike. | `config.toml` glossary. Refresh it after a reshuffle alongside `baseline.md`. |
 | **An unpinned transitive dependency broke everything, silently.** PyAV 19 landed 2026-09-30; faster-whisper 1.2.1 asks only for `av>=11`, so CI installed it and every episode failed with `TypeError` for three days (30 Sept – 2 Oct). The job reported **success** throughout: per-episode error handling meant a 100% failure rate still sent an email, because news and in-print were fine. Healthchecks got success pings. 24 episodes undelivered, 11 written off at the retry cap. | `requirements.txt` bounds every direct dependency and hard-caps `av<19`. `run.py:is_total_failure()` writes a status file; `briefing.yml` has a **tripwire step after the archive push** that fails the job on a total wipeout so `/fail` fires. Cause-agnostic — it catches the next one too. |
 | **A silent outage needs a recovery path that doesn't spam the reader.** The backlog's summaries must reach Dom but must NOT arrive as "Daily podcast summary" — that subject is auto-forwarded to his manager. | `src/catchup.py`: summarises recovered transcripts and sends **one** email under a different brand, never touching `last_email_at`. See §7. |
+| **The recovery itself silently delivered nothing** (2026-10-03). `catchup.py` treated a missing `index.md` line as "never emailed", but `backfill_collect.py` writes index lines for every transcript it collects — so recovering the transcripts made all 24 episodes look delivered. The scheduled pass exited with "nothing to recover" and reported success. Two days of believed-fixed, actually-nothing. | Selection now keys off **`items.json` absence** plus failure record plus `--since` (§7). `--dry-run` stops before summarising so the selection can always be checked for free. |
 
 ---
 
@@ -198,12 +199,31 @@ small` keeps local runs fast.
    sent and clears those failure records, so the next pass picks up cleanly.
    `--dry-run` first, always — it is what caught the stale-failure bug below.
 
-`catchup.py` recovers only episodes that both have a recorded failure **and**
-have no `index.md` line. That second condition is load-bearing: `index.md` is
-appended only after a successful send, so it is the delivery ledger.
-`episode_failures` alone is not — it was append-only until 2026-10-02, so it
-still holds counters for episodes that failed once, succeeded, and were
-delivered months ago. `--since` is a further guard.
+`catchup.py` selects on **three** conditions, all required: a recorded failure,
+published on or after `--since`, and **no `items.json` beside the transcript**.
+
+Each one is load-bearing, and getting this wrong has already cost a failed
+recovery:
+
+- **Failure records alone are not a delivery ledger.** `episode_failures` was
+  append-only until 2026-10-02, so it still holds counters for episodes that
+  failed once, succeeded, and were delivered months ago.
+- **`index.md` is NOT a delivery ledger either**, though it looks like one.
+  `run.py` appends a line only after a successful send — but
+  `backfill_collect.py` also appends one for *every transcript it collects*. So
+  the backfill that recovered the 30 Sept transcripts gave all 24 episodes
+  index lines, and the first catch-up excluded the whole backlog as "already
+  delivered" and sent nothing. `index.md` records what is *archived*, not what
+  was *read*.
+- **`items.json` absence is the honest test** — nothing writes it without
+  summarising — but on its own it would sweep in the ~1,000 historical backfill
+  transcripts, which have never been summarised and never should be. Hence the
+  other two bounds.
+
+`--ignore-items` exists for the one case the items.json test gets wrong: a pass
+that summarised successfully then failed to *send* leaves items.json without
+delivery. `--dry-run` stops before summarising, so it is free — use it every
+time; it has now caught two selection bugs.
 
 **Gemini quota is 20/day/model.** Prefer offline verification (cached
 `items.json` + render) over re-running the model; a testing spree exhausts the
