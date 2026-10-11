@@ -462,9 +462,20 @@ def select_top_line(stories: list[dict], gemini_cfg: dict) -> list[tuple[dict, d
     )
     try:
         client = genai.Client()
-        raw = _call_with_backoff(
-            client, gemini_cfg["model"], TOP_LINE_PROMPT.format(candidates=listing)
-        )
+        # Use the ladder, not gemini_cfg["model"] alone. This was the one call
+        # in the pipeline pinned to a single rung, so on a heavy morning — the
+        # exact morning the top line is most useful — the primary's 20 requests
+        # were already spent and this silently degraded to "first four". Costs
+        # nothing on a normal day: later rungs are only touched on failure.
+        raw = None
+        for model in model_ladder(gemini_cfg):
+            try:
+                raw = _call_with_backoff(client, model, TOP_LINE_PROMPT.format(candidates=listing))
+                break
+            except errors.APIError:
+                continue
+        if raw is None:
+            raise errors.APIError("all models failed", None)
         picks = json.loads(raw)["top"]
         picks = [i for i in picks if isinstance(i, int) and 0 <= i < len(candidates)]
         seen: list[int] = []
