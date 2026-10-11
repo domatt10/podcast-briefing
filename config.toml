@@ -14,12 +14,35 @@ glossary = "DESNZ, NESO, SSEP, Ofgem, CfD, contracts for difference, allocation 
 # Strongest free-tier model, as config because Google rotates/retires these (spec §7).
 # (2026-07: Pro models are paid-only — free tier is the Flash family. Verified
 # empirically: 2.5-pro returns 429 "limit: 0" on a free key.)
-model = "gemini-3.5-flash"
+model = "gemini-3.6-flash"
 # Free-tier quota is 20 requests PER DAY PER MODEL, so this ladder is a quota
-# pool as much as a fallback: three rungs = ~60 calls a day. A 16-episode
-# morning needs ~20 on its own, which is how 2026-09-13 ran dry. Verified
-# available on a free key 2026-09-13; re-probe if Google retires one.
-fallback_models = ["gemini-2.5-flash", "gemini-3.5-flash-lite"]
+# pool as much as a fallback: five rungs = ~100 calls a day. A 16-episode
+# morning needs ~20 on its own, which is how 2026-09-13 ran dry.
+#
+# Ordered by capability, not novelty: the full Flash models first, then Lite,
+# so a quota-exhausted morning degrades in quality as late as possible.
+#
+# 2026-10-11: ALL FIVE probed directly against the project's own free key and
+# confirmed usable — listing a model via models.list() does NOT mean the free
+# tier can call it (2.5-pro is listed and returns 429 "limit: 0"). Re-probe the
+# same way before trusting any change here.
+#
+# Why these five:
+#   - gemini-3.5-flash was DEPRECATED 2026-10-08 and silently redirects to
+#     3.6-flash. Naming 3.6 directly changes nothing today and removes the
+#     dependency on a redirect Google will eventually withdraw.
+#   - gemini-2.5-flash is on borrowed time: retired 2026-10-20 on Vertex and
+#     already 404 for new projects on this API. It still answers on THIS key
+#     because the project used it before the cutoff. Kept as the last rung for
+#     the free quota while it lasts — delete it when it starts returning 404.
+#   - gemini-3.5-flash-lite is not deprecated (retires 2027-07-21 at the
+#     earliest), so it is the stable rung.
+fallback_models = [
+  "gemini-3.7-flash",
+  "gemini-3.8-flash",
+  "gemini-3.5-flash-lite",
+  "gemini-2.5-flash",
+]
 
 [email]
 smtp_host = "smtp.gmail.com"
