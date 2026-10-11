@@ -9,6 +9,7 @@ in CI, the matrix outputs.
 import argparse
 import json
 import os
+import subprocess
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -17,6 +18,36 @@ from download import slug
 from feeds import fetch_episodes
 
 FALLBACK_SECS = 2400  # assume ~40 min when a feed omits duration
+
+
+def warn_if_archive_stale(archive: Path) -> None:
+    """Warn loudly when the archive clone is behind its remote.
+
+    This planner decides what to transcribe by looking for transcripts that do
+    not exist yet, so a stale clone INVENTS work. On 2026-10-11 a local run
+    planned 33 episodes when the true answer was 3: the clone was six commits
+    behind, so thirty already-transcribed episodes looked missing.
+
+    CI never sees this because it clones fresh every run — it only bites a
+    human running the planner locally, which is exactly when nobody is checking.
+    Best-effort and never fatal: a shallow clone, no network or no git at all
+    are all fine reasons to skip the check.
+    """
+    try:
+        subprocess.run(
+            ["git", "-C", str(archive), "fetch", "--quiet"],
+            check=True, timeout=60, capture_output=True,
+        )
+        out = subprocess.run(
+            ["git", "-C", str(archive), "rev-list", "--count", "HEAD..@{u}"],
+            check=True, timeout=30, capture_output=True, text=True,
+        )
+        behind = int(out.stdout.strip() or 0)
+        if behind:
+            print(f"[plan] WARNING: archive clone is {behind} commit(s) behind its remote.")
+            print("[plan] It will plan work that is already done. Pull the archive first.")
+    except Exception:
+        pass
 
 
 def main() -> None:
@@ -30,6 +61,7 @@ def main() -> None:
 
     cfg = load_config()
     archive = Path(args.archive)
+    warn_if_archive_stale(archive)
     cutoff = (date.today() - timedelta(days=args.days)).isoformat()
 
     todo = []
