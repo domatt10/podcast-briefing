@@ -88,7 +88,9 @@ def summarise_existing(ep, cfg, archive) -> dict | None:
     return {"transcript": transcript, **result}
 
 
-def recovery_set(cfg, state, archive, since: str, ignore_items: bool = False) -> tuple[list, list[str]]:
+def recovery_set(
+    cfg, state, archive, since: str, ignore_items: bool = False, shows: list[str] | None = None
+) -> tuple[list, list[str]]:
     """Episodes the pipeline failed on AND never delivered, from the feeds.
 
     Three conditions, all needed:
@@ -120,11 +122,47 @@ def recovery_set(cfg, state, archive, since: str, ignore_items: bool = False) ->
     leaves items.json behind without delivery, which would otherwise strand
     those episodes permanently. Still bounded by the failure records and
     `since`, so it cannot run away.
+
+    `shows` switches to a SECOND mode for a different job: delivering episodes
+    that were archived but never summarised, where nothing ever failed. The
+    case that prompted it was adding a feed — seeding marks a new feed's whole
+    back catalogue processed on first sight (correctly, or joining a feed would
+    dump a year of episodes into one briefing), so recent episodes worth
+    reading are archived and then never looked at again. There is no failure
+    record, so the default mode cannot see them.
+
+    Dropping the failure-record bound is only safe because naming the shows IS
+    the bound: with `since`, it can reach at most a few episodes of feeds the
+    caller asked for by name. Never widen this to "all shows".
     """
+    found, notes = [], []
+    if shows:
+        wanted_shows = {s.strip().lower() for s in shows}
+        unknown = wanted_shows - {f["name"].lower() for f in cfg["feeds"]}
+        if unknown:
+            # Fail loudly: a typo would otherwise look like "nothing to recover".
+            raise SystemExit(f"[catchup] no such show(s) in config.toml: {', '.join(sorted(unknown))}")
+        for feed_cfg in cfg["feeds"]:
+            if feed_cfg["name"].lower() not in wanted_shows:
+                continue
+            try:
+                episodes = fetch_episodes(feed_cfg, cfg["filtering"])
+            except Exception as e:
+                notes.append(f"Feed unreachable: {feed_cfg['name']}")
+                print(f"[catchup] {feed_cfg['name']} FAILED ({type(e).__name__}) - skipping feed")
+                continue
+            found.extend(
+                ep
+                for ep in episodes
+                if ep.published >= since
+                and (ignore_items or not items_path(archive, ep).exists())
+            )
+        found.sort(key=lambda e: (e.published, e.show))
+        return found, notes
+
     wanted = set(state.get("episode_failures", {}))
     if not wanted:
         return [], []
-    found, notes = [], []
     for feed_cfg in cfg["feeds"]:
         try:
             episodes = fetch_episodes(feed_cfg, cfg["filtering"])
@@ -170,6 +208,13 @@ def main() -> None:
         "otherwise strand those episodes. Still bounded by failure records and --since.",
     )
     ap.add_argument(
+        "--show", action="append", metavar="NAME",
+        help="deliver archived-but-never-summarised episodes from this feed (exact name "
+        "from config.toml), instead of the failure-driven recovery set. Repeatable. For "
+        "episodes nothing ever failed on — typically a newly added feed, whose back "
+        "catalogue seeding marks processed on first sight. Always pair with --since.",
+    )
+    ap.add_argument(
         "--claim", action="store_true",
         help="mark the recovery set processed and exit, emailing nothing. Run this as "
         "soon as the transcripts land: otherwise the next daily briefing sees 24 "
@@ -190,7 +235,7 @@ def main() -> None:
     state_file = archive / "state.json"
     state = load_state(state_file)
 
-    eps, footer = recovery_set(cfg, state, archive, args.since, args.ignore_items)
+    eps, footer = recovery_set(cfg, state, archive, args.since, args.ignore_items, args.show)
     if not eps:
         print("[catchup] nothing to recover - no recorded episode failures")
         return
@@ -259,10 +304,17 @@ def main() -> None:
     top = select_top_line(stories, cfg["gemini"]) if stories else []
 
     label = f"{span_label([ep.published for ep, _ in recovered])} ({len(recovered)} episodes)"
-    footer.append(
-        "One-off recovery of the episodes lost to the transcription break of "
-        "30 September to 2 October. Normal service resumes with the next daily email."
-    )
+    if args.show:
+        footer.append(
+            f"Recent back catalogue from a newly added feed ({', '.join(args.show)}), "
+            "sent once so it isn't lost to seeding. New episodes will appear in the "
+            "daily email from now on."
+        )
+    else:
+        footer.append(
+            "One-off recovery of episodes the pipeline couldn't process at the time. "
+            "Normal service resumes with the next daily email."
+        )
 
     # Swap the brand for this send only. The daily subject is what triggers the
     # auto-forward to his manager; a catch-up is for him alone.
