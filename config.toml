@@ -383,3 +383,16 @@ category = "energy"
 name = "Transmission (Modo Energy)"
 url = "https://fast.wistia.com/channels/vtx0dp52da/rss"
 category = "energy"
+
+# Hosted by Sulaiman Ilyas-Jarrett, a former DESNZ and No. 10 adviser, which is
+# the reason to carry it: it is an ex-insider interviewing policy people, so it
+# tends to sit at the altitude this briefing wants rather than at operational
+# industry level. Fortnightly, ~50 min, so it costs about 25 minutes of
+# transcription every other Tuesday.
+# Checked 2026-10-11: 44 episodes, current, audio enclosures present. Note that
+# third-party podcast directories were showing May 2026 as the latest episode —
+# the feed itself was four months ahead of them. Trust the feed, not listings.
+[[feeds]]
+name = "The Energy Revolution"
+url = "https://anchor.fm/s/107bb7ae4/podcast/rss"
+category = "energy"
