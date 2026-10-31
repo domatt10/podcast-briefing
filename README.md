@@ -22,6 +22,31 @@ paraphrase or invent a quote, because it never produces quote text at all.
 | Constituency Watch | Weekly | Local offshore wind and tidal news across six coastal geographies |
 | Archive and search | Continuous | 1,387 transcripts (~9.8M words) and 1,763 archived news items, with an offline search page built over them |
 
+### Scope, if you are evaluating this for a rebuild
+
+The three products are not of equal value, and the whole repository is here as
+a reference implementation rather than as a specification of what to build.
+
+**The daily briefing is the product.** The archive is its by-product — the
+transcripts have to be kept anyway, so the search layer is close to free. Those
+two together are the core.
+
+**Everything else is optional, and two parts carry questions worth settling
+early:**
+
+- **The Politico layer** (`politico.py`) reads a mailbox over IMAP. It is the
+  sole reason the system needs a Gmail app password with read access, which is
+  its weakest credential by some distance. Dropping this layer removes that
+  credential entirely.
+- **The "In print" layer** (`in_print.py`) fetches third-party articles and
+  reproduces paragraphs from them. Fine for one person's private reading;
+  a licensing question at any wider distribution.
+- **Constituency Watch** (`constituency.py`, `constituency.yml`) is live and
+  left in deliberately, because its relevance logic is the most interesting in
+  the repository — its prompt **inverts** the daily briefing's altitude test,
+  since low altitude is the whole point of a local digest. It is **not** part
+  of the intended first scope.
+
 ---
 
 ## How a run works
