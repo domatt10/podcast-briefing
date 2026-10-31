@@ -15,7 +15,6 @@ import argparse
 import hashlib
 import json
 import re
-import sys
 import urllib.parse
 from datetime import date, datetime, timedelta, timezone
 from html import escape
