@@ -6,9 +6,10 @@ IMAP, not the Gmail API — no OAuth machinery.
 
 Mechanism: open the Gmail label READ-ONLY, fetch everything from the last few
 days regardless of read status, and dedupe by Message-ID hash in the filename.
-(The original design fetched UNSEEN mail and marked it read — but Dom reads
-Playbook before the pipeline runs, so his own reading hid emails from the
-archive. Read status is his; the filename is ours.) Some boilerplate survives
+(The original design fetched UNSEEN mail and marked it read — but the reader
+often opens Playbook before the pipeline runs, so their own reading hid emails
+from the archive. Read status belongs to the person, not to us; the filename is
+ours.) Some boilerplate survives
 the HTML strip — acceptable for reference material (brief's watch-outs).
 """
 

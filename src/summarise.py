@@ -255,7 +255,8 @@ def repair_anchors(items: list[dict], segments: list[dict]) -> dict:
     it is nearly always an indexing slip, so we trust the locator and re-point
     the quote. Nothing is ever dropped: an anchor we cannot find leaves the item
     exactly as it came, because a slightly mismatched item beats a missing one
-    (Dom's call, 2026-08-15). The anchor is never shown to the reader — the quote
+    (an explicit decision by the reader, 2026-08-15). The anchor is never shown
+    to the reader — the quote
     is still reconstituted from real transcript segments either way.
     """
     seg_norm = [_norm(s["text"]) for s in segments]

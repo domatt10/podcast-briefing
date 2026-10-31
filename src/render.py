@@ -21,8 +21,9 @@ from html import escape
 BRAND = "Daily podcast summary"
 
 # (stream key, display heading) in the fixed §5 order. The spec grouped these
-# under two bands ("On your patch" / "The wider weather"); dropped at Dom's
-# request 2026-07-29 — the lane colours and fixed order already do that work.
+# under two bands ("On your patch" / "The wider weather"); dropped by the
+# reader's decision 2026-07-29 — the lane colours and fixed order already do
+# that work, and the bands added a layer of heading for no extra information.
 SECTIONS = [
     ("energy_desnz", "Energy / DESNZ"),
     ("crown_estate", "Crown Estate lane"),
@@ -33,7 +34,7 @@ SECTIONS = [
 
 ENERGY_STREAMS = {"energy_desnz", "crown_estate"}
 
-# Per-lane colour coding (Dom's request). Deliberately desaturated, print-like
+# Per-lane colour coding. Deliberately desaturated, print-like
 # tones: dark enough to read as body text on white, distinct at a glance on a
 # phone, and they never carry meaning alone — every section is also labelled.
 STREAM_COLOURS = {

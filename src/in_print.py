@@ -8,10 +8,10 @@ Two-stage selection keeps calls and context small:
   1. one call over all fresh headlines/standfirsts -> up to N ranked picks
   2. one call per pick over that article's numbered paragraphs -> quote IDs
 
-Paywall posture (agreed with Dom): sources here are open-text; if a body
-still can't be extracted, the item degrades to a headline flag + link.
-BBC and Politico are deliberately absent — he reads those already; they
-remain archive-only. Failure posture: the caller treats this stage as
+Paywall posture: sources here are open-text; if a body still can't be
+extracted, the item degrades to a headline flag + link. BBC and Politico are
+deliberately absent — the reader already sees those directly, so they stay
+archive-only. Failure posture: the caller treats this stage as
 non-fatal; nothing here may sink the briefing.
 """
 

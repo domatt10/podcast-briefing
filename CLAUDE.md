@@ -1,62 +1,81 @@
-# Podcast Signals Briefing
+# Working conventions
 
-Automated daily email digest: UK politics + energy podcasts → Whisper transcription →
-Gemini summarisation → morning email. Full specification in `docs/briefing-spec.md`;
-target output format in `docs/example-briefing.md` (also the few-shot example inside
-the summarisation prompt).
+Context for an AI coding assistant working in this repository. For what the
+system is and does, read `README.md`; for why it is shaped this way, and the
+production failures behind each guard, read `HANDOVER.md`.
 
-## Architecture (locked — see spec §7)
+## Architecture (settled — do not re-litigate without reading HANDOVER §4)
 
-- **This repo becomes PUBLIC** (free unlimited GitHub Actions). Transcripts + processed-episode
-  state live in a separate PRIVATE repo, written via a fine-grained token.
-- Scheduled GitHub Actions workflow (~05:30 UTC, odd minute) + `workflow_dispatch`.
-- Transcription: self-hosted Whisper (faster-whisper engine), segment-level timestamps,
-  domain glossary in `initial_prompt`. Official show transcripts preferred where published.
-- Synthesis: Gemini API free tier, strongest available model, model name in `config.toml`.
-- Delivery: Gmail SMTP app password. Monitoring: Healthchecks.io dead-man's-switch.
+- **This repository is PUBLIC.** GitHub Actions minutes are unlimited on public
+  repositories, which is what makes the project free to run. Transcripts and
+  processed-episode state live in a **separate private repository**, written by
+  CI through a write-scoped deploy key (`ARCHIVE_DEPLOY_KEY`).
+- **Trigger is external**: cron-job.org fires a `workflow_dispatch` at 03:47
+  UTC. GitHub's own `schedule:` entry is a backup only — its scheduler ran
+  6–11 hours late daily.
+- **Transcription**: self-hosted faster-whisper, "medium" model, segment-level
+  timestamps, domain glossary passed as `initial_prompt`.
+- **Selection**: Gemini free tier. Five models in `config.toml`, ordered by
+  capability — a quota pool, not a failover chain, because the free tier allows
+  20 requests per day *per model*.
+- **Delivery**: Gmail SMTP app password. **Monitoring**: Healthchecks.io
+  dead-man's-switch, plus a tripwire that fails the job when episodes were
+  found and none could be processed.
 
 ## Non-negotiable invariants
 
-1. **Verbatim quotes are reconstituted by code** from numbered transcript segment IDs.
-   Gemini returns segment IDs + relevance notes, NEVER quote text as prose.
-2. **Attribution is stamped by code** from feed metadata (show, episode title, date, hosts,
-   guests), one episode per Gemini call — the model cannot misattribute across episodes.
-3. **Idempotent**: processed-episode state file (GUID, fallback title+date) checked before
-   any transcription or email; never re-process, never double-send.
-4. **Nothing sensitive to stdout/logs**: this repo's Actions logs are world-readable.
-   No transcript text, no quotes, no briefing content — only counts and timestamps.
-5. **Fail loud, degrade gracefully**: per-feed and per-episode isolation; Healthchecks ping
-   on full success only; fallback email (raw episode list) if synthesis fails.
+1. **Verbatim quotes are reconstituted by code** from numbered transcript
+   segment IDs. The model returns segment IDs and relevance notes, never quote
+   text as prose. Validation requires a consecutive run of segments.
+2. **Attribution is stamped by code** from feed metadata — show, episode title,
+   date, hosts, guests — one episode per model call, so the model cannot
+   misattribute across episodes. Attribute to the show, never to a guessed
+   speaker: transcripts carry no speaker labels.
+3. **Idempotent.** The processed-episode state file (GUID, falling back to
+   title and date) is checked before any transcription or email. Never
+   re-process, never double-send.
+4. **Nothing sensitive to stdout or logs.** This repository's Actions logs are
+   world-readable. Counts, titles and timings only — no transcript text, no
+   quotes, no briefing content, no email addresses. Error logging prints the
+   exception type and innermost file and line, never the message: a model error
+   can echo the prompt, and the prompt contains transcript text.
+5. **Fail loud, degrade gracefully.** Per-feed and per-episode isolation, so one
+   broken thing never sinks a run — but a run where *everything* failed fails
+   the job deliberately, so monitoring fires.
 
 ## Conventions
 
-- Python 3.12 (`.venv\Scripts\python`). Windows dev machine; production is ubuntu-latest.
-- All tunables (models, feeds, schedule) in `config.toml` — no magic constants in code.
-- Secrets from environment variables (local: `.env`, gitignored; CI: GitHub Secrets).
-- The briefer profile (spec §8) is the relevance arbiter — prompt changes should be
-  tested against it, not against intuition.
-- `baseline.md` is the **current-landscape file**: who is in post and what is
-  already settled, so recaps of established fact aren't reported back as news. It
-  is the one file that goes stale by itself — **re-verify it against
-  gov.uk/government/ministers after any reshuffle**. The pipeline warns in the log
-  once it is 45 days old. Keep `profile.md` naming roles, not people.
+- Python 3.12. Development on Windows (`.venv\Scripts\python`); production is
+  `ubuntu-latest`.
+- All tunables — models, feeds, thresholds, glossary — live in `config.toml`.
+  No magic constants in code.
+- Dependencies are **bounded, including transitive ones**. `av<19` is a
+  load-bearing cap, not tidiness: see HANDOVER §5.
+- Secrets come from environment variables: `.env` locally (gitignored,
+  documented in `.env.example`), GitHub Secrets in CI.
+- `profile.md` is the relevance arbiter. Prompt changes should be tested
+  against it, not against intuition. It names roles, never individuals, so it
+  does not go stale.
+- `baseline.md` is the current-landscape file — what is already established, so
+  recaps are not reported as news. It is the one file that goes stale by
+  itself: **re-verify against gov.uk/government/ministers after any reshuffle**.
+  The pipeline warns in the log once it is 45 days old.
+- Tests are offline and need no API access: `python tests/test_briefing.py`.
+  Add one for any logic that has failed in production.
 
 ## Status
 
-Three products run from this repo, all LIVE:
+Three products run from this repository, all live:
 
-1. **Daily briefing** (external trigger 03:47 UTC + backup cron): 18 feeds (expanded 2026-07-16), back catalogues seeded,
-   news layer (BBC ×3 + Politico IMAP) feeding the archive, index.md lines.
-2. **Archive agent** (docs/archive-agent-brief.md): private archive + rich
-   CLAUDE.md there; ~90-day transcript backfill in progress via backfill.yml
-   (self-limiting chunks; collector always banks).
-3. **Constituency Watch** (docs/constituency-watch-brief.md): weekly local
-   offshore-wind/tidal digest, Mondays 04:47 + 05:27 UTC. ⚠️ Its prompt INVERTS
-   the altitude test — never wire profile.md into it. Slice geography: Celtic
-   Sea & Welsh waters. CW-2 (Planning Inspectorate DCO watch) deliberately
-   DEFERRED until an English DCO-heavy geography (East Anglia/Humber) joins —
-   Welsh projects route via NRW/Welsh consenting, not the PI register.
+1. **Daily briefing** — 20 feeds, external trigger plus backup cron. News layer
+   (BBC RSS ×3, Politico via IMAP) feeding the archive; "In print" layer over
+   14 commentary and research feeds; `index.md` updated per episode.
+2. **Archive and search** — private archive repository, 1,387 transcripts from
+   2025-12-28, with `build_search.py` producing an offline search page.
+3. **Constituency Watch** — weekly local offshore wind and tidal digest across
+   six geographies. ⚠️ Its prompt deliberately **inverts** the altitude test —
+   never wire `profile.md` into it.
 
-Both email products are Healthchecks-monitored (cron-type checks; success ping +
-/fail ping). Still open: official-transcript-first (no roster show publishes
-one); institutional-memory + tiering iteration during soak (spec App. B).
+Recovery tooling: `backfill.yml` (manual, parallel transcription) and
+`catchup.py` / `catchup.yml` (summarise a recovered backlog and send it
+separately from the daily product). The drill is in HANDOVER §6.

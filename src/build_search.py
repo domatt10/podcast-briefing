@@ -13,6 +13,7 @@ Usage:  python src/build_search.py [--archive PATH] [--out PATH]
 
 import argparse
 import json
+import os
 import re
 from datetime import date
 from email.utils import parsedate_to_datetime
@@ -340,7 +341,11 @@ run();
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--archive", default=r"C:\Users\Dom's PC\code\podcast-archive")
+    ap.add_argument(
+        "--archive",
+        default=os.environ.get("ARCHIVE_DIR", "../podcast-archive"),
+        help="path to the archive working copy; defaults to $ARCHIVE_DIR",
+    )
     ap.add_argument("--out", default=None, help="defaults to <archive>/search.html")
     args = ap.parse_args()
 
