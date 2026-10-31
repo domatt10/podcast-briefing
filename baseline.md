@@ -4,6 +4,15 @@ The summariser reads this every morning alongside `profile.md`. Its job is to
 stop settled facts being reported back as if they were news: once a reshuffle
 has happened, a podcast explaining it is a recap, not a signal.
 
+**What this file is, and is not.** It is working input to a language model, not
+organisational analysis, and nothing in it represents a Crown Estate view. It
+is written plainly and sometimes bluntly because the model has to be able to
+tell the difference between a fact already established and a genuine
+development — hedged or diplomatic phrasing makes that judgement worse, and the
+briefing then reports last month's news back as though it were new. Political
+characterisations here are shorthand for "the reader already knows this",
+nothing more.
+
 **Keep this current.** It is the one file in the repo that goes stale on its own.
 Re-check it after any reshuffle, Budget, or major machinery-of-government change.
 
