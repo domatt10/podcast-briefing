@@ -4,8 +4,9 @@ Why this exists. When transcription breaks, the daily briefing keeps sending
 (news and in-print still work) while episodes pile up and eventually hit the
 retry cap. Once their transcripts have been recovered — normally via
 backfill.yml, which transcribes in parallel chunks — the summaries still need
-to reach the reader. But NOT in a "Daily podcast summary" email: that subject
-is auto-forwarded to his manager, and a catch-up is for him alone.
+to reach the reader. But NOT under the daily briefing's own subject line:
+recipients may have mail rules keyed to it, and a backlog recovery is an
+out-of-band send that should be distinguishable from the normal product.
 
 So this script:
   - sends under a DIFFERENT brand and subject (nothing matching the forward rule)
@@ -219,7 +220,7 @@ def main() -> None:
         help="mark the recovery set processed and exit, emailing nothing. Run this as "
         "soon as the transcripts land: otherwise the next daily briefing sees 24 "
         "unprocessed episodes with transcripts sitting ready, summarises the lot, and "
-        "sends the whole backlog in the email that gets auto-forwarded. Failure "
+        "sends the whole backlog under the daily subject line instead. Failure "
         "records are kept, so the catch-up can still find them afterwards.",
     )
     ap.add_argument(
@@ -316,8 +317,8 @@ def main() -> None:
             "Normal service resumes with the next daily email."
         )
 
-    # Swap the brand for this send only. The daily subject is what triggers the
-    # auto-forward to his manager; a catch-up is for him alone.
+    # Swap the brand for this send only, so a recovery is never mistaken for —
+    # or filtered as — the daily briefing.
     render.BRAND = BRAND
     subject, text, html = render_briefing(label, stories, top=top, footer_notes=footer)
     print(f"[catchup] {len(stories)} story/stories, top line: {len(top)}")

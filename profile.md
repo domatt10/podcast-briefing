@@ -1,67 +1,77 @@
-# Profile of the briefer
+# Reader profile — the relevance test
 
-The system reads this every morning to decide what clears the bar. It is the
-relevance arbiter (spec §8) — richer and more specific is always better.
+The summariser reads this file every morning. It is what decides whether an item
+clears the bar, so specificity matters more than brevity: a vague profile
+produces a vague briefing.
 
-## Who
+## The reader
 
-- **Role:** External Affairs & Policy Manager, offshore/marine; primary focus
-  **offshore wind** (secondary: tidal, nature, interconnectors).
-- **Organisation:** **The Crown Estate**, marine team.
-- **Lens — landowner/enabler, not developer or thinktank.** Seabed leasing; the
-  commercial framework under developers; the interface between government ambition
-  and deployment. Weights: allocation-round economics, route-to-market,
-  grid/transmission, the investment climate for big capital projects, government
-  appetite to de-risk vs leave it to the market.
+- **Role:** External Affairs & Policy Manager, marine. Primary focus offshore
+  wind; secondary tidal, nature and interconnectors.
+- **Organisation:** The Crown Estate, marine team.
+- **Vantage point — landowner and enabler, not developer or think tank.** The
+  seabed leasing framework, the commercial conditions developers build under,
+  and the interface between government ambition and actual deployment. Weight
+  items accordingly: allocation-round economics, route to market, grid and
+  transmission, the investment climate for major capital projects, and
+  government appetite to de-risk rather than leave matters to the market.
 
-## What he's doing with it
+## What the briefing is for
 
-- **Core motivation:** align the organisation's work with government priorities;
-  find the best "way in" for engagement; anticipate ministerial moves and changes
-  of direction; prepare for scenarios.
-- **Payoff:** catches a soft signal early (e.g. HMT cooling on big energy
-  projects), articulates it upward/across, never out of the loop going into
-  conversations.
-- **Existing diet (supplement, don't duplicate):** reads/rates Politico; gets
-  day-to-day sector + industry news, and formal parliamentary monitoring
-  (PolicyMogul), elsewhere.
+- **Purpose:** align the organisation's work with government priorities,
+  identify the right point of entry for engagement, anticipate ministerial moves
+  and changes of direction, and prepare for plausible scenarios.
+- **Value:** catching a soft signal early — the Treasury cooling on a particular
+  technology, say — and being able to raise it internally while it still has
+  time to inform a decision.
+- **Existing sources (supplement, do not duplicate):** Politico Playbook, daily
+  sector and industry press, and formal parliamentary monitoring via PolicyMogul
+  are all covered elsewhere.
 
-## Two audiences (what makes him look on the ball)
+## Two audiences
 
-- *Specialist marine policymakers* — he advises them on the wider political
-  environment. Wants **granular political signals**: funding shifts ("the
-  Treasury is cooling on CCS"), personnel ("the energy minister looks like he'll
-  be moved"), prioritisation direction ("government favouring projects that do X
-  over Y"). Name post-holders from `baseline.md`, never from memory — this file
-  deliberately uses roles rather than names so it doesn't go stale.
-- *Seniors & external-affairs colleagues* — wants the **big-picture political
-  weather**: where the winds are blowing, where government is feeling pressure.
-  Plus a career/credibility interest in being seen as across the political vibe
-  (hence the wider-politics streams).
+The briefing is read with two sets of conversations in mind.
+
+- **Specialist marine policy colleagues**, who are advised on the wider
+  political environment. They need granular political signals: funding shifts
+  ("the Treasury is cooling on CCS"), personnel ("the energy minister looks
+  likely to move"), and direction of travel ("government favouring projects that
+  do X over Y"). Name post-holders from `baseline.md`, never from memory — this
+  file deliberately refers to roles rather than individuals so that it does not
+  go stale.
+- **Senior leadership and external affairs colleagues**, who need the broader
+  political weather: where pressure is building on government, and which way
+  things are moving. External affairs work depends on fluency in the wider
+  political conversation and not only the energy brief, which is why the general
+  politics streams are included.
 
 ## The relevance test — two axes, applied together
 
-- **Altitude:** does it cross a minister's desk or change a decision-maker's mind?
-  Moves, reshuffles, shifts in priority, money switched on/off → **in**. Delivery
-  of already-announced policy, or detail below the ministerial radar → **out, even
-  within the offshore core.**
-- **Proximity rings:**
-  - *Core, deepest detail:* offshore/marine energy (CCS, offshore wind, tidal,
-    oil & gas) + grid/system (NESO's SSEP, connections reform,
-    zonal-vs-national / REMA pricing debates).
-  - *Outer ring, informed-level only:* hydrogen, onshore wind, etc. — in only when
-    landscape-shaping or high-altitude.
-  - *Geographic:* England/Wales/NI seabed incl. the Celtic Sea = core; **Scotland
-    at lower resolution** (its offshore wind and oil & gas debates yes; ScotWind
-    leasing minutiae and Scottish domestic politics no).
+- **Altitude:** does it cross a minister's desk, or change a decision-maker's
+  mind? Appointments, reshuffles, shifts in priority, money switched on or off →
+  **in**. Delivery detail on already-announced policy, or anything below
+  ministerial attention → **out, even within the offshore core.**
+
+- **Proximity:**
+  - *Core, in full detail:* offshore and marine energy — offshore wind, tidal,
+    CCS, oil and gas — together with the grid and system questions around them:
+    NESO's Strategic Spatial Energy Plan, connections reform, and the
+    zonal-versus-national pricing debate.
+  - *Outer ring, headline level only:* hydrogen, onshore wind and similar. In
+    scope only where landscape-shaping or high altitude.
+  - *Geographic:* The Crown Estate's seabed remit covers England, Wales and
+    Northern Ireland, including the Celtic Sea. Scotland's seabed is managed
+    separately, by Crown Estate Scotland. Scottish offshore wind and North Sea
+    questions shape the UK-wide picture and are in scope; Scottish domestic
+    politics, and the administrative detail of ScotWind leasing, are not.
 
 ## Definitions and exclusions
 
-- **"Pressure on government" = internal signals** — comments/rumours from *within*
-  government that it's feeling pressure — not external lobbying noise (tracked
-  elsewhere).
-- **Negative space (out):** anything that is *both* irrelevant to the energy
-  sector / the running of government *and* unlikely to be a talking point among
-  general public-affairs people. (So horse-race polling detail, foreign politics,
-  culture-war rows, party-management trivia → out — unless genuinely
-  landscape-shaping or a live public-affairs conversation.)
+- **"Pressure on government" means internal signals** — comment or rumour from
+  *within* government that it is feeling pressure — rather than external
+  lobbying, which is tracked elsewhere.
+- **Out of scope:** anything that is *both* irrelevant to the energy sector and
+  the running of government *and* unlikely to come up in conversation among
+  public affairs professionals. Horse-race polling detail, foreign politics with
+  no UK energy dimension, culture-war stories and party-management trivia are
+  out, unless genuinely landscape-shaping.

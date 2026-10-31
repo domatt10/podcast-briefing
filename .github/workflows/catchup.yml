@@ -1,7 +1,8 @@
 # Archive catch-up — deliver a recovered backlog in its OWN email.
 #
-# Separate from the daily briefing on purpose: that subject is auto-forwarded
-# to Dom's manager, and a catch-up is for him alone. catchup.py swaps the brand
+# Separate from the daily briefing on purpose: recipients may have mail rules
+# keyed to the daily subject line, and a backlog recovery should be
+# distinguishable from the normal product. catchup.py swaps the brand
 # for one send and never touches last_email_at, so the daily email is
 # unaffected whichever order they run in.
 #
