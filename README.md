@@ -118,8 +118,9 @@ Actions secrets in CI. Nothing is hardcoded.
 | `GEMINI_API_KEY` | Passage selection |
 | `GMAIL_APP_PASSWORD` | Sending mail, and reading the Politico layer's inbox |
 | `BRIEFING_FROM` / `BRIEFING_TO` | Sender and recipient |
-| `ARCHIVE_DIR` | Path to the archive working copy |
+| `ARCHIVE_DIR` | Path to the archive working copy (a path, not a secret) |
 | `HEALTHCHECK_URL` / `HEALTHCHECK_URL_WEEKLY` | Dead-man's-switch monitoring |
+| `ARCHIVE_DEPLOY_KEY` | **CI only.** An SSH key scoped to the archive repository alone, so the runner can commit transcripts. Not needed, and not used, for local runs |
 
 ---
 
