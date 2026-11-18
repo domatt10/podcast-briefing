@@ -1,8 +1,9 @@
 # Reader profile — the relevance test
 
-The summariser reads this file every morning. It is what decides whether an item
-clears the bar, so specificity matters more than brevity: a vague profile
-produces a vague briefing.
+The summariser reads this file every morning. It is what decides whether an
+item clears the bar — richer and more specific is always better. A marginal
+item that turns out not to matter costs the reader five seconds; a missed
+signal costs them the thing this exists for.
 
 ## The reader
 
@@ -57,8 +58,8 @@ The briefing is read with two sets of conversations in mind.
     CCS, oil and gas — together with the grid and system questions around them:
     NESO's Strategic Spatial Energy Plan, connections reform, and the
     zonal-versus-national pricing debate.
-  - *Outer ring, headline level only:* hydrogen, onshore wind and similar. In
-    scope only where landscape-shaping or high altitude.
+  - *Outer ring, informed level:* hydrogen, onshore wind and similar — in
+    scope when landscape-shaping or high altitude.
   - *Geographic:* The Crown Estate's seabed remit covers England, Wales and
     Northern Ireland, including the Celtic Sea. Scotland's seabed is managed
     separately, by Crown Estate Scotland. Scottish offshore wind and North Sea
@@ -68,11 +69,9 @@ The briefing is read with two sets of conversations in mind.
 ## Definitions and exclusions
 
 - **"Pressure on government" means pressure visible from inside government** —
-  a department pushing back, a minister's team briefing that they are worried,
-  frustration within No. 10. It does *not* mean an industry body or campaign
-  group calling for something. Those calls are constant, are covered elsewhere,
-  and say nothing about whether government is moving. An organisation demanding
-  action is not a signal; evidence that the demand is landing is.
+  a department pushing back, a minister's team briefing concern, frustration
+  within No. 10. An industry body calling for something is lobbying rather than
+  a signal; evidence that the call is landing is the signal.
 - **Out of scope:** anything that is *both* irrelevant to the energy sector and
   the running of government *and* unlikely to come up in conversation among
   public affairs professionals. Horse-race polling detail, foreign politics with
