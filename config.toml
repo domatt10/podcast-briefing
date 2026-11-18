@@ -396,3 +396,13 @@ category = "energy"
 name = "The Energy Revolution"
 url = "https://anchor.fm/s/107bb7ae4/podcast/rss"
 category = "energy"
+
+# Hosted by Una Brosnan and John MacAskill, co-owned with Foundation Collective.
+# Long-form interviews with senior energy figures - offshore wind, grid,
+# industrial strategy, route to market. Roughly monthly and sometimes less, so
+# it costs very little; 13 episodes at the time of adding.
+# Checked 2026-11-18: current (latest 2 Nov), audio enclosures present.
+[[feeds]]
+name = "The ReVolting Podcast"
+url = "https://feeds.buzzsprout.com/2542240.rss"
+category = "energy"
