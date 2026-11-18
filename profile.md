@@ -68,10 +68,14 @@ The briefing is read with two sets of conversations in mind.
 
 ## Definitions and exclusions
 
-- **"Pressure on government" means pressure visible from inside government** —
-  a department pushing back, a minister's team briefing concern, frustration
-  within No. 10. An industry body calling for something is lobbying rather than
-  a signal; evidence that the call is landing is the signal.
+- **"Pressure on government" means anything that tells you whether government
+  is moving, and which way.** From inside: a department pushing back, a
+  minister's team briefing concern, frustration within No. 10. From outside:
+  **lobbying by the relevant industries is a signal** — what offshore wind,
+  marine, grid and oil and gas are pressing for, how hard, and whether they are
+  being heard, all shape the commercial framework. Treat a sector body shifting
+  its position, escalating, or breaking ranks as worth reporting. What is *not*
+  a signal is campaign noise from sectors with no bearing on this patch.
 - **Out of scope:** anything that is *both* irrelevant to the energy sector and
   the running of government *and* unlikely to come up in conversation among
   public affairs professionals. Horse-race polling detail, foreign politics with
