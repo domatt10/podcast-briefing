@@ -564,6 +564,39 @@ def test_empty_feed_notes_reach_the_footer_even_on_a_blank_day():
     assert notes == ["Print feed empty at source: DeadFeed"], notes
 
 
+# --- backfill show filter ----------------------------------------------------
+
+
+def test_backfill_shows_filter_rejects_an_unknown_name():
+    """A typo must stop the run, not plan zero episodes. "0 to transcribe"
+    reads as "already done", and transcription is expensive enough that the
+    difference matters before 50 hours of audio is committed to."""
+    import subprocess
+
+    r = subprocess.run(
+        [sys.executable, str(ROOT / "src" / "backfill_plan.py"),
+         "--days", "30", "--shows", "No Such Podcast",
+         "--archive", str(ROOT), "--out", str(ROOT / "tests" / "_unused.json")],
+        capture_output=True, text=True, encoding="utf-8", timeout=120,
+    )
+    assert r.returncode != 0, "an unknown show name must exit non-zero"
+    assert "no such show" in (r.stdout + r.stderr).lower()
+    assert not (ROOT / "tests" / "_unused.json").exists(), "it must not write a plan"
+
+
+def test_backfill_shows_filter_is_case_insensitive_and_trims():
+    """The names are typed by hand into a workflow input box, so tolerate
+    casing and stray spaces - but never tolerate a name that does not exist."""
+    import tomllib
+
+    cfg = tomllib.loads((ROOT / "config.toml").read_text(encoding="utf-8"))
+    names = {f["name"].lower() for f in cfg["feeds"]}
+    typed = "  the green alliance podcast , PLANET POSSIBLE,Senedd Sources  "
+    wanted = {s.strip().lower() for s in typed.split(",") if s.strip()}
+    assert wanted <= names, f"these should all resolve: {wanted - names}"
+    assert len(wanted) == 3
+
+
 if __name__ == "__main__":
     passed = 0
     for name, fn in sorted(globals().items()):

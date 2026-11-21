@@ -20,6 +20,9 @@ on:
       chunks:
         description: "Parallel chunks"
         default: "20"
+      shows:
+        description: "Restrict to these shows (comma-separated, exact config.toml names). Empty = all feeds."
+        default: ""
   # NO schedule. A temporary 4-hourly one ran 2026-07-26 to 07-29 to backfill
   # the archive to January; it is removed because its collector pushes to the
   # archive collided with the daily briefing's push (2026-07-29: briefing run
@@ -65,6 +68,7 @@ jobs:
           --days "${{ inputs.days || '210' }}"
           --limit "${{ inputs.limit || '0' }}"
           --chunks "${{ inputs.chunks || '20' }}"
+          --shows "${{ inputs.shows }}"
           --archive archive --out plan.json
       - uses: actions/upload-artifact@v4
         with:

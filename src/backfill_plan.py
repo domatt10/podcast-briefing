@@ -57,6 +57,14 @@ def main() -> None:
     ap.add_argument("--chunks", type=int, default=20)
     ap.add_argument("--archive", required=True, help="path to the archive clone")
     ap.add_argument("--out", default="plan.json")
+    ap.add_argument(
+        "--shows",
+        default="",
+        help="comma-separated show names to restrict the plan to, exactly as they "
+        "appear in config.toml (case-insensitive). Empty = every feed. Use this "
+        "when a feed has just been added and you want ITS back catalogue without "
+        "sweeping up every other feed's gaps in the same window.",
+    )
     args = ap.parse_args()
 
     cfg = load_config()
@@ -64,8 +72,23 @@ def main() -> None:
     warn_if_archive_stale(archive)
     cutoff = (date.today() - timedelta(days=args.days)).isoformat()
 
+    feeds = cfg["feeds"]
+    if args.shows.strip():
+        wanted = {s.strip().lower() for s in args.shows.split(",") if s.strip()}
+        # Fail loudly, like catchup.py: a typo would otherwise silently plan
+        # nothing, and "0 episodes" reads as "already done" rather than "wrong
+        # name". Transcription is expensive enough to be sure before starting.
+        unknown = wanted - {f["name"].lower() for f in feeds}
+        if unknown:
+            raise SystemExit(
+                f"[plan] no such show(s) in config.toml: {', '.join(sorted(unknown))}"
+            )
+        feeds = [f for f in feeds if f["name"].lower() in wanted]
+        print(f"[plan] restricted to {len(feeds)} feed(s): "
+              f"{', '.join(f['name'] for f in feeds)}")
+
     todo = []
-    for feed_cfg in cfg["feeds"]:
+    for feed_cfg in feeds:
         try:
             episodes = fetch_episodes(feed_cfg, cfg["filtering"])
         except Exception as e:
