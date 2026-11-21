@@ -186,7 +186,7 @@ url = "https://theconversation.com/uk/politics/articles.atom"
 name = "Comment is Freed"
 url = "https://samf.substack.com/feed"
 
-# --- Marine nature lane ------------------------------------------------------
+# --- Marine nature lane: PRINT feeds ------------------------------------------
 # kind = "nature" does three things: it routes these into a SEPARATE selection
 # call with its own budget (nature_max_items above), it gives them the long
 # 168h lookback, and it exempts them from one-shot seen-marking. Same reasoning
@@ -479,14 +479,19 @@ category = "energy"
 # industrial strategy, route to market. Roughly monthly and sometimes less, so
 # it costs very little; 13 episodes at the time of adding.
 # Checked 2026-11-18: current (latest 2 Nov), audio enclosures present.
-# --- Marine nature lane ------------------------------------------------------
+[[feeds]]
+name = "The ReVolting Podcast"
+url = "https://feeds.buzzsprout.com/2542240.rss"
+category = "energy"
+
+# --- Marine nature lane: PODCAST feeds ----------------------------------------
 # No UK podcast covers marine nature policy specifically; these two cover UK
 # nature and environment policy generally and the lane's filter does the
 # narrowing. Eleven were checked (2026-11-21): the rest were US-based,
 # terrestrial-only, natural history rather than policy, or dormant.
-# Podcast feeds are NOT tagged by subject — nothing reads such a field. Every
-# episode goes through the same summariser and the marine_nature stream rules
-# in profile.md decide what survives.
+# `category` is descriptive only - nothing reads it. Every episode goes through
+# the same summariser, and the marine_nature stream rules in the prompt decide
+# what survives.
 
 # UK environmental think tank. Fortnightly, ~25 min, squarely political:
 # "Climate risk: are public bodies prepared?", "What will Andy Burnham's
@@ -494,14 +499,11 @@ category = "energy"
 [[feeds]]
 name = "The Green Alliance Podcast"
 url = "https://feeds.simplecast.com/HGcMqc0w"
+category = "nature"
 
 # Weekly, ~25 min, plus a monthly news roundup. "The OEP - Marking the
 # Government's Environment Homework", "Economy Vs Environment - Can Both Win?"
 [[feeds]]
 name = "Planet Possible"
 url = "https://feeds.simplecast.com/aevZ5TBx"
-
-[[feeds]]
-name = "The ReVolting Podcast"
-url = "https://feeds.buzzsprout.com/2542240.rss"
-category = "energy"
+category = "nature"
