@@ -67,10 +67,12 @@ production failures behind each guard, read `HANDOVER.md`.
 
 Three products run from this repository, all live:
 
-1. **Daily briefing** — 20 feeds, external trigger plus backup cron. News layer
-   (BBC RSS ×3, Politico via IMAP) feeding the archive; "In print" layer over
-   14 commentary and research feeds; `index.md` updated per episode.
-2. **Archive and search** — private archive repository, 1,387 transcripts from
+1. **Daily briefing** — 26 podcast feeds, external trigger plus backup cron.
+   News layer (BBC RSS ×3, Politico via IMAP) feeding the archive — note that
+   news feeds NEVER reach the email; "In print" layer over 22 commentary,
+   research and nature feeds; `index.md` updated per episode. Six streams; see
+   `summarise.STREAMS`, which is the authority, not this list.
+2. **Archive and search** — private archive repository, 1,552 transcripts from
    2025-12-28, with `build_search.py` producing an offline search page.
 3. **Constituency Watch** — weekly local offshore wind and tidal digest across
    six geographies. ⚠️ Its prompt deliberately **inverts** the altitude test —

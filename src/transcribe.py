@@ -58,6 +58,48 @@ def ensure_readable(transcript_path: Path) -> Path:
     return out
 
 
+GLOSSARY_TOKEN_BUDGET = 448 // 2 - 1  # faster-whisper's own prompt cap: 223
+
+# Offline proxy for the token budget, so a test can catch an over-long glossary
+# without loading Whisper's tokenizer. Acronym-and-proper-noun text tokenizes
+# badly: the current list measures 2.36 chars/token, so 2.1 is a pessimistic
+# floor. The AUTHORITATIVE check is the "[transcribe] glossary N/223 tokens"
+# line in the run log - this constant only stops the obvious mistake.
+GLOSSARY_CHAR_BUDGET = int(GLOSSARY_TOKEN_BUDGET * 2.1)  # 468
+
+
+def check_glossary_budget(glossary: str, model) -> int:
+    """Warn loudly if the glossary will not fit Whisper's prompt.
+
+    faster-whisper keeps only the LAST 223 tokens of the prompt and discards
+    the front without a word (see tokenizer.get_prompt). An over-long glossary
+    therefore does not degrade gracefully - it throws away whatever is listed
+    first, which is where the core vocabulary lives. This happened on
+    2026-11-21: the glossary reached 360 tokens and DESNZ, NESO, SSEP, Ofgem
+    and the ministers' names were being dropped on every episode.
+
+    Returns the token count, or 0 if the tokenizer could not be reached. Never
+    raises: a glossary problem must not stop a transcription.
+    """
+    try:
+        n = len(model.hf_tokenizer.encode(" " + glossary.strip(), add_special_tokens=False).ids)
+    except Exception as e:
+        print(f"[transcribe] could not measure the glossary ({type(e).__name__}) - continuing")
+        return 0
+    if n > GLOSSARY_TOKEN_BUDGET:
+        over = n - GLOSSARY_TOKEN_BUDGET
+        print(
+            f"[transcribe] *** GLOSSARY TOO LONG: {n} tokens, budget "
+            f"{GLOSSARY_TOKEN_BUDGET}. Whisper is SILENTLY DISCARDING the first "
+            f"{over} tokens of it - the terms listed first get no help at all. "
+            f"Trim config.toml [whisper].glossary. ***"
+        )
+    else:
+        print(f"[transcribe] glossary {n}/{GLOSSARY_TOKEN_BUDGET} tokens")
+    return n
+
+
+
 def transcribe(audio_path: Path, episode, whisper_cfg: dict, out: Path, model_name: str | None = None) -> Path:
     """Transcribe one episode to `out` (a path inside the archive).
 
@@ -74,6 +116,7 @@ def transcribe(audio_path: Path, episode, whisper_cfg: dict, out: Path, model_na
     name = model_name or whisper_cfg["model"]
     print(f"[transcribe] loading Whisper model '{name}' (first use downloads it)...")
     model = WhisperModel(name, device="cpu", compute_type="int8")
+    check_glossary_budget(whisper_cfg["glossary"], model)
 
     print("[transcribe] transcribing...")
     t0 = time.time()

@@ -268,7 +268,8 @@ def main() -> None:
     # "In print" — under-the-radar online news for the briefing email itself.
     in_print_items, print_hashes = [], []
     try:
-        in_print_items, print_hashes = fetch_in_print(cfg, archive, state)
+        in_print_items, print_hashes, print_notes = fetch_in_print(cfg, archive, state)
+        footer += print_notes
     except Exception as e:
         print(f"[in-print] stage failed ({type(e).__name__}) - continuing without it")
         footer.append("In-print scan failed this run")

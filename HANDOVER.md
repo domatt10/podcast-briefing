@@ -4,7 +4,7 @@ Why this system is built the way it is. The README covers what it does and how
 to run it; this file covers the decisions, and the production failures that
 caused them. Read `docs/briefing-spec.md` for the original specification.
 
-Last updated 2026-10-31.
+Last updated 2026-11-21.
 
 ---
 
@@ -69,11 +69,13 @@ briefing usually means editing these, not the code.
 
 **Daily briefing** — the trigger is **external**: cron-job.org fires a
 `workflow_dispatch` at 03:47 UTC. GitHub's own `schedule:` is a single backup
-entry. Email lands 06:00–07:30 UK. 20 feeds.
+entry. Email lands 06:00–07:30 UK. 26 podcast feeds and 22 print feeds
+(counts as at 2026-11-21 — `config.toml` is the only authority).
 
-**Archive** — 1,387 transcripts from 2025-12-28, roughly 9.8 million words;
-324 Politico newsletters from 2026-02-20 (the mailbox's own start); 1,224 BBC
-items; 215 "In print" articles; `index.md` with one line per episode.
+**Archive** (as at 2026-11-21) — 1,552 transcripts from 2025-12-28, roughly
+10.1 million words; 374 Politico newsletters from 2026-02-20 (the mailbox's own
+start); 1,605 BBC items; 285 "In print" articles; `index.md` with one line per
+episode.
 
 **Constituency Watch** — six geographies, Mondays.
 
@@ -184,6 +186,8 @@ re-opens the failure.
 | **An unparseable model response escaped** past the fallback handler, killing a whole episode. | Parse errors now fall through to the next model in the ladder. |
 | **Mis-pointed quotes** (~13%): a note about party purges attached to a quote about farming. | Each item carries an `anchor`; `repair_anchors()` re-points the segment IDs. It **never drops an item** — an explicit call by the reader: a slightly mismatched item beats a missing one. |
 | **Whisper mis-hears names**, corrupting quotes and the archive alike. | Domain glossary in `config.toml`. Refresh after a reshuffle, alongside `baseline.md`. |
+| **The glossary silently outgrew Whisper's prompt** (2026-11-21). Whisper's decoder context is 448 tokens and faster-whisper keeps only the last `448 // 2 - 1` of the prompt, discarding the FRONT without a word. Adding the marine nature and Wales vocabulary took the glossary from 128 to 360 tokens, so DESNZ, NESO, SSEP, Ofgem, CfD, AR7/AR8 and every minister's name were being thrown away while saltmarsh and seagrass survived. Caught before any run used it. | The glossary now holds only what Whisper gets wrong — acronyms and awkward proper nouns, no ordinary English. `transcribe.check_glossary_budget()` logs `glossary N/223 tokens` on every run and shouts if it is over; a test guards the budget offline against a character proxy. Note also that faster-whisper defaults to `condition_on_previous_text=True`, so the glossary primes the opening of a file and then decays. |
+| **A print feed went empty at source and nothing noticed.** LabourList served a valid 1.1KB RSS document with zero `<item>` elements, under every path tried including its WordPress REST API. It logged `0 fresh` every run — identical to a quiet day — so it contributed nothing for an unknown length of time. The existing feed-failure counter only catches feeds that *throw*. | `in_print.fetch_candidates()` now separates "parsed but empty" from "nothing new", counts it through `record_feed_failure` and returns the names; `fetch_in_print` passes them to the footer, so after `flag_feed_after_failures` runs the reader is told. The note survives the early return, because a day with nothing selected is exactly when a feed is likeliest to be broken. |
 | **An unpinned transitive dependency broke everything, silently.** PyAV 19 landed 2026-09-30; faster-whisper 1.2.1 asks only for `av>=11`, so CI installed it and every episode failed with `TypeError` for three days. The job reported **success** throughout: per-episode error handling meant a 100% failure rate still produced an email, because the news and in-print layers were unaffected. Monitoring received success pings. 24 episodes undelivered, 11 written off at the retry cap. | `requirements.txt` bounds every direct dependency and hard-caps `av<19`. `run.py:is_total_failure()` writes a status file, and `briefing.yml` has a **tripwire step after the archive push** that fails the job on a total wipeout so the `/fail` ping fires. Cause-agnostic, so it catches the next one too. |
 | **A silent outage needs a recovery path that does not duplicate the daily product.** Recovered summaries must reach the reader, but not under the daily subject line — recipients may have mail rules keyed to it. | `src/catchup.py`: summarises recovered transcripts and sends **one** email under a different brand, never touching `last_email_at`. See §6. |
 | **The recovery itself silently delivered nothing** (2026-10-03). `catchup.py` treated a missing `index.md` line as "never emailed", but `backfill_collect.py` writes index lines for *every transcript it collects* — so recovering the transcripts made all 24 episodes look delivered. The scheduled pass exited with "nothing to recover" and reported success. Two days of believed-fixed, actually-nothing. | Selection now keys off **`items.json` absence**, plus a failure record, plus `--since` (§6). `--dry-run` stops before summarising, so the selection can always be checked for free. |

@@ -25,6 +25,7 @@ from bs4 import BeautifulSoup
 
 from config import ROOT
 from news import _article_text
+from state import clear_feed_failure, record_feed_failure
 from summarise import _baseline, _call_with_backoff, genai, model_ladder
 
 MIN_BODY_CHARS = 400  # below this we can't honestly offer an "extended quote"
@@ -173,8 +174,8 @@ def clean_title(raw: str, source_title: str) -> str:
     return raw
 
 
-def fetch_candidates(cfg: dict, state: dict) -> list[dict]:
-    """Fresh, unseen items across all print feeds.
+def fetch_candidates(cfg: dict, state: dict) -> tuple[list[dict], list[str]]:
+    """Returns (fresh unseen items, names of feeds that are empty at source).
 
     Research feeds carry a longer lookback than daily commentary, because a
     report keeps its value for days and a comment piece does not.
@@ -186,12 +187,26 @@ def fetch_candidates(cfg: dict, state: dict) -> list[dict]:
         "nature": timedelta(hours=cfg["in_print"].get("nature_lookback_hours", 168)),
     }
     seen = state.setdefault("print_seen", {})
-    items = []
+    items: list[dict] = []
+    empty: list[str] = []
     for feed_cfg in cfg.get("print_feeds", []):
         kind = feed_cfg.get("kind", "commentary")
         cutoff = now - windows.get(kind, windows["commentary"])
         try:
             parsed = feedparser.parse(feed_cfg["url"])
+            # A feed that parses cleanly and carries NOTHING is the dangerous
+            # case: it logs "0 fresh", which looks exactly like a quiet day,
+            # and contributes nothing for months. LabourList did this - a
+            # valid 1.1KB RSS document with zero <item> elements. Separate the
+            # two so an empty feed is loud and a quiet one is not.
+            if not parsed.entries:
+                runs = record_feed_failure(state, f"print:{feed_cfg['name']}")
+                print(f"[in-print] {feed_cfg['name']}: EMPTY FEED - parsed fine, "
+                      f"zero entries ({runs} run(s) in a row)")
+                if runs >= cfg["filtering"]["flag_feed_after_failures"]:
+                    empty.append(feed_cfg["name"])
+                continue
+            clear_feed_failure(state, f"print:{feed_cfg['name']}")
             fresh = 0
             for e in parsed.entries:
                 link = e.get("link", "")
@@ -230,7 +245,7 @@ def fetch_candidates(cfg: dict, state: dict) -> list[dict]:
             print(f"[in-print] {feed_cfg['name']} ({kind}): {fresh} fresh")
         except Exception as e:
             print(f"[in-print] {feed_cfg['name']} FAILED ({type(e).__name__}) - skipping")
-    return items
+    return items, empty
 
 
 CONSENT_MARKERS = (
@@ -387,8 +402,9 @@ def _realise(data, pool, cfg, archive, models, max_items, cap, lane):
     return results
 
 
-def fetch_in_print(cfg: dict, archive: Path, state: dict) -> tuple[list[dict], list[str]]:
-    """Returns (render-ready items, url_hashes of ALL candidates considered).
+def fetch_in_print(cfg: dict, archive: Path, state: dict) -> tuple[list[dict], list[str], list[str]]:
+    """Returns (render-ready items, url_hashes of ALL candidates considered,
+    footer notes for any feed that is empty at source).
     The caller marks hashes seen only after a successful send, so held days
     re-consider the same stories tomorrow.
 
@@ -400,9 +416,10 @@ def fetch_in_print(cfg: dict, archive: Path, state: dict) -> tuple[list[dict], l
     carrying ~100, and separate budgets mean a quiet nature week simply yields
     less rather than padding itself to fill slots.
     """
-    candidates = fetch_candidates(cfg, state)
+    candidates, empty_feeds = fetch_candidates(cfg, state)
+    notes = [f"Print feed empty at source: {n}" for n in empty_feeds]
     if not candidates:
-        return [], []
+        return [], [], notes
 
     models = model_ladder(cfg["gemini"])
     profile = (ROOT / "profile.md").read_text(encoding="utf-8")
@@ -429,4 +446,4 @@ def fetch_in_print(cfg: dict, archive: Path, state: dict) -> tuple[list[dict], l
 
     print(f"[in-print] {len(results)} item(s) selected from "
           f"{len(general_pool)} general / {len(nature_pool)} nature candidates")
-    return results, hashes_to_mark(candidates, [r["url_hash"] for r in results])
+    return results, hashes_to_mark(candidates, [r["url_hash"] for r in results]), notes

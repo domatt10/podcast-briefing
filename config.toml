@@ -4,11 +4,30 @@
 
 [whisper]
 model = "medium"   # production accuracy target; override with "base"/"small" for fast local tests
-# Domain glossary seeded into Whisper's initial_prompt — cuts mis-hearings in the RAW
-# transcript so verbatim quotes stay faithful (spec §9). Extend freely.
+# Domain glossary seeded into Whisper's initial_prompt - cuts mis-hearings in the
+# RAW transcript so verbatim quotes stay faithful (spec §9).
+#
+# HARD LIMIT: 223 TOKENS. Whisper's decoder context is 448 tokens and
+# faster-whisper keeps only the last `448 // 2 - 1` of the prompt
+# (tokenizer.get_prompt), silently discarding the FRONT of anything longer. On
+# 2026-11-21 this glossary had grown to 360 tokens, which meant DESNZ, NESO,
+# SSEP, Ofgem, CfD, AR7/AR8 and every minister's name were being thrown away
+# while the tail survived. transcribe.py now counts the tokens and says so
+# loudly, and tests/test_briefing.py guards the budget offline. Caught before
+# any run used it, but check the log line before adding terms.
+#
+# Because the budget is tight, this list holds ONLY what Whisper gets WRONG:
+# acronyms, awkward proper nouns and programme names. Ordinary English -
+# "offshore wind", "natural capital", "net zero", "marine protected area" -
+# is deliberately absent. Whisper medium transcribes it correctly unaided, and
+# every token spent on it pushes something that matters off the front.
+#
+# Note also that faster-whisper defaults to condition_on_previous_text=True, so
+# the glossary primes the opening of a file and then decays as the transcript
+# accumulates. It is a priming device, not a dictionary that applies throughout.
 # Names matter as much as acronyms: a mis-heard minister corrupts the quote AND
 # the archive. Refresh after any reshuffle (2026-07: Burnham cabinet).
-glossary = "DESNZ, NESO, SSEP, Ofgem, CfD, contracts for difference, allocation round, AR7, AR8, GB Energy, Great British Energy, the Crown Estate, seabed leasing, Celtic Sea, offshore wind, floating wind, interconnectors, REMA, zonal pricing, net zero, Andy Burnham, Miatta Fahnbulleh, John Healey, Ed Miliband, Rachel Reeves, Shabana Mahmood, Pat McFadden, Darren Jones, Louise Haigh, Makerfield, Holyrood, John Swinney, Defra, Natural England, Natural Resources Wales, JNCC, Cefas, Marine Management Organisation, Environment Agency, marine protected area, MPA, Habitats Regulations, habitats regulations assessment, Marine Recovery Fund, marine net gain, biodiversity net gain, natural capital, blue carbon, nature recovery, saltmarsh, seagrass, oyster reef, benthic, denitrification, bottom trawling, Marine Delivery Routemap, ReMeMaRe, MaRePo, POSEIDON, ECOFLOW, Good Environmental Status, Blue Marine Foundation, Green Finance Institute, Caroline Price, Gus Jaspert"
+glossary = "DESNZ, NESO, SSEP, Ofgem, CfD, AR7, AR8, REMA, TNUoS, NSTA, the Crown Estate, Celtic Sea, Rosebank, Jackdaw, Miatta Fahnbulleh, Makerfield, Polanski, Caroline Price, Gus Jaspert, Defra, JNCC, Cefas, MMO, MPA, ReMeMaRe, MaRePo, POSEIDON, ECOFLOW, Marine Delivery Routemap, saltmarsh, seagrass, benthic, denitrification, Senedd, Plaid Cymru, Cymru, Rhun ap Iorwerth, Ken Skates, Drakeford, Wigley, Erebus, Mona, IFS, OBR, Milburn"
 
 [gemini]
 # Strongest free-tier model, as config because Google rotates/retires these (spec §7).
@@ -185,6 +204,20 @@ url = "https://theconversation.com/uk/politics/articles.atom"
 [[print_feeds]]
 name = "Comment is Freed"
 url = "https://samf.substack.com/feed"
+
+# Wales, in the GENERAL pool rather than the nature one: the reason these are
+# here is the political story, and the nature lane has its own feeds. Giving a
+# 10-item-a-day general news feed the 168h nature window would fill that pool
+# with Cardiff City results. Both checked 2026-11-21.
+# Nation.Cymru carries full text in the feed; BBC Wales needs a scrape, which
+# returns ~5.9k clean characters.
+[[print_feeds]]
+name = "BBC Wales politics"
+url = "https://feeds.bbci.co.uk/news/wales/wales_politics/rss.xml"
+
+[[print_feeds]]
+name = "Nation.Cymru"
+url = "https://nation.cymru/feed/"
 
 # --- Marine nature lane: PRINT feeds ------------------------------------------
 # kind = "nature" does three things: it routes these into a SEPARATE selection
@@ -507,3 +540,39 @@ category = "nature"
 name = "Planet Possible"
 url = "https://feeds.simplecast.com/aevZ5TBx"
 category = "nature"
+
+# --- Wales -------------------------------------------------------------------
+# Added 2026-11-21. Wales was the one blind spot in the list: the Crown Estate's
+# remit covers Welsh seabed and the Celtic Sea, there is now a Plaid Cymru
+# Welsh Government campaigning to have that revenue devolved, and nothing in
+# the feed list could see any of it. Burnham's refusal to devolve the Crown
+# Estate in Wales (20 Nov 2026) was invisible to the briefing - the BBC
+# Politics news feed carried it, but news feeds only write to the archive.
+# See also the Wales lines in profile.md and baseline.md: the feed alone is not
+# enough. Tested without them and the selector passed over the devolution story
+# twice while using 2 of 6 slots, because nothing told it Wales was in scope.
+
+# Weekly, ~45 min. Welsh political insiders - Senedd arithmetic, Budget
+# negotiations, Welsh Labour's rebuild under Ken Skates, Reform in the Senedd.
+[[feeds]]
+name = "Senedd Sources"
+url = "https://feeds.acast.com/public/shows/68da26c6099369ce420066ac"
+category = "politics"
+
+# --- Fiscal ------------------------------------------------------------------
+# Added 2026-11-21. treasury_fiscal is a named stream but The Rest Is Money was
+# the only feed aimed at it, and that is consumer economics. Weekly, ~45 min,
+# and it tracks exactly the open questions in baseline.md: Budget analysis,
+# spending-plan credibility, the Milburn review.
+[[feeds]]
+name = "IFS Zooms In"
+url = "https://feeds.acast.com/public/shows/ifs-zooms-in-coronavirus-and-the-economy"
+category = "politics"
+
+# Weekly, ~40 min. The thirteenth Westminster show, so it is here for the
+# markets and fiscal read-across rather than the Westminster chat, which is
+# covered several times over.
+[[feeds]]
+name = "Political Fix (FT)"
+url = "https://feeds.acast.com/public/shows/8e80ba05-2f15-4479-a6cc-b2f6635a1fe0"
+category = "politics"

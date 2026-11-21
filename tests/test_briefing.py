@@ -7,7 +7,8 @@ Run: .venv\\Scripts\\python -m pytest tests -q     (or: python tests/test_briefi
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "src"))
 
 from in_print import _looks_like_boilerplate, clean_title, fetch_candidates, hashes_to_mark
 from render import build_stories, reconstitute, render_briefing
@@ -362,9 +363,10 @@ def test_updated_only_feed_entries_are_still_ingested(monkeypatch=None):
     try:
         cfg = {
             "in_print": {"lookback_hours": 30},
+            "filtering": {"flag_feed_after_failures": 3},
             "print_feeds": [{"name": "Defra", "url": "x", "kind": "nature"}],
         }
-        items = fetch_candidates(cfg, {})
+        items, _ = fetch_candidates(cfg, {})
     finally:
         mod.feedparser.parse = real
 
@@ -395,11 +397,12 @@ def test_nature_feeds_get_the_long_lookback_not_the_daily_one():
     real = mod.feedparser.parse
     mod.feedparser.parse = lambda url: FakeParsed()
     try:
-        base = {"in_print": {"lookback_hours": 30, "nature_lookback_hours": 168}}
-        nature = fetch_candidates(
+        base = {"in_print": {"lookback_hours": 30, "nature_lookback_hours": 168},
+                "filtering": {"flag_feed_after_failures": 3}}
+        nature, _ = fetch_candidates(
             {**base, "print_feeds": [{"name": "Defra", "url": "x", "kind": "nature"}]}, {}
         )
-        daily = fetch_candidates(
+        daily, _ = fetch_candidates(
             {**base, "print_feeds": [{"name": "Blog", "url": "x"}]}, {}
         )
     finally:
@@ -464,6 +467,101 @@ def test_every_registered_stream_has_a_render_section_and_a_colour():
         assert stream in sectioned, f"{stream} has no section in render.SECTIONS"
         assert stream in r.STREAM_COLOURS, f"{stream} has no lane colour"
     assert len(sectioned) == len(STREAMS), "render.SECTIONS has a section for a dead stream"
+
+
+# --- Whisper glossary budget -------------------------------------------------
+
+
+def test_glossary_fits_whispers_prompt_budget():
+    """faster-whisper keeps only the LAST 223 tokens of the prompt and drops
+    the front in silence. An over-long glossary does not degrade gracefully:
+    it discards whichever terms are listed first, which is where the core
+    vocabulary sits. This is a real regression that shipped on 2026-11-21."""
+    import tomllib
+
+    from transcribe import GLOSSARY_CHAR_BUDGET
+
+    cfg = tomllib.loads((ROOT / "config.toml").read_text(encoding="utf-8"))
+    glossary = cfg["whisper"]["glossary"]
+    assert len(glossary) <= GLOSSARY_CHAR_BUDGET, (
+        f"glossary is {len(glossary)} chars, over the {GLOSSARY_CHAR_BUDGET}-char "
+        "proxy for Whisper's 223-token prompt cap. Trim it, and check the "
+        "'[transcribe] glossary N/223 tokens' line in the next run log."
+    )
+
+
+def test_glossary_holds_the_terms_whisper_actually_gets_wrong():
+    """The budget is tight enough that it has to be spent on acronyms and
+    awkward proper nouns, not on ordinary English. Guards both directions:
+    the must-haves stay, and the padding does not creep back."""
+    import tomllib
+
+    cfg = tomllib.loads((ROOT / "config.toml").read_text(encoding="utf-8"))
+    glossary = cfg["whisper"]["glossary"]
+    for term in ("DESNZ", "NESO", "SSEP", "Ofgem", "CfD", "Fahnbulleh", "Senedd",
+                 "ap Iorwerth", "ReMeMaRe", "JNCC", "Cefas"):
+        assert term in glossary, f"{term} is exactly what the glossary is for"
+    for padding in ("offshore wind", "natural capital", "net zero",
+                    "marine protected area", "contracts for difference"):
+        assert padding not in glossary, (
+            f"'{padding}' is ordinary English - Whisper gets it right unaided, and "
+            "the tokens it costs push a real term off the front of the prompt"
+        )
+
+
+def test_an_empty_feed_is_flagged_and_a_quiet_one_is_not():
+    """LabourList served a valid 1.1KB RSS document with zero items for an
+    unknown length of time. It logged "0 fresh" every run, which is exactly
+    what a quiet feed logs, so nothing ever surfaced. These must look
+    different."""
+    import in_print as mod
+
+    class Empty:
+        entries = []
+
+    class Quiet:  # has content, just nothing inside the lookback window
+        entries = [{"link": "https://x/old", "title": "Old", "published_parsed": (2020, 1, 1, 0, 0, 0, 0, 1, 0)}]
+
+    cfg = {
+        "in_print": {"lookback_hours": 30},
+        "filtering": {"flag_feed_after_failures": 1},
+        "print_feeds": [{"name": "DeadFeed", "url": "e"}, {"name": "QuietFeed", "url": "q"}],
+    }
+    real = mod.feedparser.parse
+    mod.feedparser.parse = lambda url: Empty() if url == "e" else Quiet()
+    try:
+        items, empty = mod.fetch_candidates(cfg, {})
+    finally:
+        mod.feedparser.parse = real
+
+    assert items == [], "neither feed has anything fresh"
+    assert empty == ["DeadFeed"], f"only the empty feed should be flagged, got {empty}"
+
+
+def test_empty_feed_notes_reach_the_footer_even_on_a_blank_day():
+    """The note has to survive the early return, or a day where nothing at all
+    is selected swallows the warning - which is the likeliest kind of day for
+    a feed to be broken on."""
+    import in_print as mod
+
+    class Empty:
+        entries = []
+
+    cfg = {
+        "in_print": {"lookback_hours": 30},
+        "filtering": {"flag_feed_after_failures": 1},
+        "print_feeds": [{"name": "DeadFeed", "url": "e"}],
+        "gemini": {},
+    }
+    real = mod.feedparser.parse
+    mod.feedparser.parse = lambda url: Empty()
+    try:
+        items, hashes, notes = mod.fetch_in_print(cfg, ROOT, {})
+    finally:
+        mod.feedparser.parse = real
+
+    assert items == [] and hashes == []
+    assert notes == ["Print feed empty at source: DeadFeed"], notes
 
 
 if __name__ == "__main__":

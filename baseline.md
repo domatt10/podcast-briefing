@@ -17,10 +17,12 @@ nothing more.
 own. Re-check it after any reshuffle, Budget, or major machinery-of-government
 change. The pipeline warns in the log once it is 45 days old.
 
-- **Last verified:** 2026-11-18 (post-Budget)
+- **Last verified:** 2026-11-21 (post-Budget; Wales block added)
 - **Verified against:** https://www.gov.uk/government/ministers and the DESNZ
   department page (authoritative for who holds which post), cross-checked
-  against the archive's own `news/` and recent transcripts.
+  against the archive's own `news/` and recent transcripts. The Wales block was
+  checked against BBC Wales reporting of 21 November 2026, nation.cymru, and
+  the Crown Estate (Wales) Bill page on bills.parliament.uk.
 
 ## Who is in post
 
@@ -52,6 +54,20 @@ Opposition, also not news: **Kemi Badenoch** leads the Conservatives with
 the Liberal Democrats; **Zack Polanski** the Greens. **John Swinney** leads an
 SNP minority government at Holyrood.
 
+Wales matters more than Scotland here, because the Welsh seabed is The Crown
+Estate's and the Welsh Government wants it (see `profile.md`). Know these:
+
+| Post | Holder |
+|---|---|
+| First Minister of Wales | Rhun ap Iorwerth (Plaid Cymru) |
+| Welsh Labour leader | Ken Skates |
+| Secretary of State for Wales | Stephen Kinnock |
+
+**Plaid Cymru runs a minority Welsh Government** — 43 of 96 seats, 49 needed
+for a majority — with **Reform UK as the official opposition on 34**. So every
+Welsh Budget is a negotiation, and that is the normal state of affairs, not a
+crisis.
+
 ## Settled — established fact, NOT news
 
 ### Government and personnel
@@ -71,6 +87,35 @@ SNP minority government at Holyrood.
   packaged with a **National Care Service** that will not cover accommodation
   costs; **net zero 2050 recommitted**; a **cross-party commission on electoral
   reform** promised, and refused by the Conservatives.
+
+### Wales
+
+- **The 7 May 2026 Senedd election transformed Welsh politics.** Plaid Cymru
+  43 seats on 35.4%, Reform UK 34 on 29.3% — its first Senedd seats — Welsh
+  Labour down to a historic low of 9, Conservatives 7, Greens 2, Liberal
+  Democrats 1. Plaid and Reform together hold 77 of 96 seats. **Eluned Morgan
+  lost her seat** and resigned; Rhun ap Iorwerth became First Minister.
+- **Burnham refused to devolve the Crown Estate in Wales.** In a letter to ap
+  Iorwerth reported on 21 November, he rejected devolution of the Crown Estate,
+  policing and justice, and rail infrastructure, saying the current model is
+  the best way of maximising economic and social benefit for Wales. BBC Wales
+  had the letter and dated it to the preceding Friday. ap Iorwerth's response
+  was that Westminster is turning its back on devolution. **The refusal itself
+  is now settled fact — what happens next is not.**
+- **The Crown Estate (Wales) Bill** — Lord Wigley's private member's bill to
+  devolve the Crown Estate — **passed all its Lords stages unopposed on 20
+  January 2026.** The UK government opposes it. A private member's bill that
+  the government will not give time to does not become law, so the Lords
+  passage is a political marker, not a legislative threat.
+- **Crown Estate operating profit in Wales was £210m in 2025/26**, against
+  £8.7m in 2020/21. The organisation's own position is that this is
+  exceptional and temporary: roughly £200m of it was option fees from the Mona
+  offshore wind development. Plaid uses the headline figure; a report
+  by Huw Irranca-Davies, under the previous Welsh Labour administration, put
+  likely sustained revenues below £20m a year — so the low estimate comes from
+  Labour in Wales, not from Westminster, which is awkward for both sides.
+  **Expect the £210m number to be quoted at him. Expect it to be quoted
+  without the caveat.**
 
 ### The Budget, 28 October — delivered
 
@@ -132,6 +177,12 @@ telling the reader something he already knows. It is **not** a signal.
   much budget ministers allocate, and whether floating gets meaningful support
   given expectations of continued strict price caps, are both open.
 - **The 10-year plan** is confirmed for publication before Christmas.
+- **What Wales does after the refusal.** ap Iorwerth is pressing for control of
+  natural resources and has been publicly rebuffed; Ken Skates has Welsh Labour
+  backing devolution too, so the pressure is cross-party rather than nationalist
+  alone. Llinos Medi MP is to reintroduce the Crown Estate (Wales) Bill in the
+  Commons, where it needs government time it does not have. Any softening, any
+  escalation, or any linkage to Welsh Budget negotiations is news.
 - **Civil service reform**: the Cabinet Secretary has hinted her review could
   propose restructuring or breaking up departments. Any machinery change
   touching DESNZ matters directly.

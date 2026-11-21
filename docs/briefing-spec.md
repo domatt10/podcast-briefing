@@ -30,6 +30,11 @@ A **signals-and-speculation briefing, not a news briefing.** The value is the ru
 
 ## 2. The five streams (lenses applied to the transcripts)
 
+> **Superseded, kept for the record.** A sixth stream, `marine_nature`, was
+> added on 2026-11-21 and is judged on consequence rather than altitude. This
+> section describes the original five. `summarise.STREAMS` and the prompt in
+> `src/summarise.py` are the authority; `profile.md` holds the current scope.
+
 1. **Top of government** — PM attitude/positioning with energy implications; machinery/"wiring" of government (lower bar — fluency is part of the reader's credibility).
 2. **Energy / DESNZ** — core; highest resolution. Fed by the energy specialists (§6).
 3. **Treasury / fiscal** — deliberately a **low bar**; general HMT mood music, not only when energy-linked.

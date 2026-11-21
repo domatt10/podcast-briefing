@@ -80,6 +80,14 @@ The briefing is read with two sets of conversations in mind.
     separately, by Crown Estate Scotland. Scottish offshore wind and North Sea
     questions shape the UK-wide picture and are in scope; Scottish domestic
     politics, and the administrative detail of ScotWind leasing, are not.
+  - *Wales is the exception to that, and it cuts the other way.* Welsh seabed
+    IS The Crown Estate's, the Celtic Sea is the growth story, and the Welsh
+    Government has a standing claim on the revenue. **So Welsh devolved
+    politics is in scope where Scottish devolved politics is not**: the
+    devolution-of-the-Crown-Estate argument, Senedd arithmetic and Budget
+    negotiations that bear on it, and the Welsh Government's posture toward
+    offshore wind and marine nature. Ordinary Welsh domestic politics with no
+    read-across - health, schools, local government - is still out.
 
 ## Definitions and exclusions
 
