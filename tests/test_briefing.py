@@ -9,7 +9,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from in_print import _looks_like_boilerplate, clean_title, hashes_to_mark
+from in_print import _looks_like_boilerplate, clean_title, fetch_candidates, hashes_to_mark
 from render import build_stories, reconstitute, render_briefing
 from run import _innermost, is_total_failure
 from summarise import MAX_SIGNIFICANT_PER_EPISODE, _enforce_tier_budget, repair_anchors
@@ -311,6 +311,159 @@ def test_innermost_reports_location_and_not_the_message():
         where = _innermost(e)
     assert where.startswith("test_briefing.py:"), where
     assert "SECRET" not in where
+
+
+# --- marine nature lane ------------------------------------------------------
+
+
+def test_nature_items_get_a_second_look_like_research():
+    """Three slots means crowding out is normal, not exceptional. An
+    unselected nature item must stay in the pool."""
+    cands = [
+        {"url_hash": "nat1", "kind": "nature"},
+        {"url_hash": "nat2", "kind": "nature"},
+        {"url_hash": "comm1", "kind": "commentary"},
+    ]
+    marked = hashes_to_mark(cands, delivered=["nat1"])
+    assert "nat1" in marked, "a delivered nature item is done"
+    assert "nat2" not in marked, "an unselected nature item must get another look"
+    assert "comm1" in marked, "commentary is still one-shot"
+
+
+def test_updated_only_feed_entries_are_still_ingested(monkeypatch=None):
+    """gov.uk atom carries <updated> and no <published>. Before the fallback
+    these feeds parsed cleanly and yielded nothing, every single day - the
+    worst kind of failure, because the log said the feed was healthy."""
+    import time
+
+    import feedparser
+
+    import in_print as mod
+
+    recent = time.gmtime(time.time() - 3600)
+
+    class FakeParsed:
+        entries = [
+            {
+                "link": "https://www.gov.uk/government/news/a",
+                "title": "Defra announces a thing",
+                "updated_parsed": recent,
+                "summary": "<p>Body text.</p>",
+            },
+            {
+                "link": "https://www.gov.uk/government/news/b",
+                "title": "No date at all",
+                "summary": "<p>Body.</p>",
+            },
+        ]
+
+    real = mod.feedparser.parse
+    mod.feedparser.parse = lambda url: FakeParsed()
+    try:
+        cfg = {
+            "in_print": {"lookback_hours": 30},
+            "print_feeds": [{"name": "Defra", "url": "x", "kind": "nature"}],
+        }
+        items = fetch_candidates(cfg, {})
+    finally:
+        mod.feedparser.parse = real
+
+    assert len(items) == 1, "the updated-only entry must be ingested, the undated one dropped"
+    assert items[0]["kind"] == "nature"
+    assert items[0]["published"], "a date must be recorded for the quote footer"
+
+
+def test_nature_feeds_get_the_long_lookback_not_the_daily_one():
+    """A Defra announcement keeps its value for days. Driven off `kind`, so
+    this breaks loudly if the window table and the config drift apart."""
+    import time
+
+    import in_print as mod
+
+    four_days_ago = time.gmtime(time.time() - 4 * 86400)
+
+    class FakeParsed:
+        entries = [
+            {
+                "link": "https://www.gov.uk/government/news/old-but-live",
+                "title": "Marine Recovery Fund opens",
+                "updated_parsed": four_days_ago,
+                "summary": "<p>Body text.</p>",
+            }
+        ]
+
+    real = mod.feedparser.parse
+    mod.feedparser.parse = lambda url: FakeParsed()
+    try:
+        base = {"in_print": {"lookback_hours": 30, "nature_lookback_hours": 168}}
+        nature = fetch_candidates(
+            {**base, "print_feeds": [{"name": "Defra", "url": "x", "kind": "nature"}]}, {}
+        )
+        daily = fetch_candidates(
+            {**base, "print_feeds": [{"name": "Blog", "url": "x"}]}, {}
+        )
+    finally:
+        mod.feedparser.parse = real
+
+    assert len(nature) == 1, "four days old is inside the 168h nature window"
+    assert daily == [], "the same item is stale against the 30h commentary window"
+
+
+def test_nature_in_print_renders_under_its_own_label_after_the_general_items():
+    """The two come from separate selection calls with separate budgets.
+    Interleaving them would hide that, and bury nature mid-list."""
+    def _p(source, lane):
+        return {
+            "source": source,
+            "title": f"{source} headline",
+            "published": "2026-11-20",
+            "url": f"https://example.com/{source}",
+            "why": f"Why {source} matters.",
+            "quote": f"A sentence from {source}.",
+            "lane": lane,
+        }
+
+    # deliberately nature-first on the way in
+    items = [_p("Defra", "nature"), _p("Carbon Brief", "general")]
+    _, text, html = render_briefing("21 November 2026", [], in_print=items)
+
+    body = text[text.index("IN PRINT"):]
+    assert body.index("Carbon Brief") < body.index("Marine nature") < body.index("Defra"), (
+        "general items, then the sub-label, then nature"
+    )
+    after = html[html.index(">In print"):]
+    assert after.index("Carbon Brief") < after.index("Marine nature") < after.index("Defra")
+
+
+def test_in_print_items_without_a_lane_still_render():
+    """Catch-up and any older state can hand over items predating the lane
+    field. They must render as general, with no stray sub-label."""
+    item = {
+        "source": "Carbon Brief",
+        "title": "Headline",
+        "published": "2026-11-20",
+        "url": "https://example.com/a",
+        "why": "Why it matters.",
+        "quote": "A sentence.",
+    }
+    _, text, _ = render_briefing("21 November 2026", [], in_print=[item])
+    body = text[text.index("IN PRINT"):]
+    assert "Carbon Brief" in body
+    assert "Marine nature" not in body, "no sub-label without a nature item"
+
+
+def test_every_registered_stream_has_a_render_section_and_a_colour():
+    """A stream the model can emit but render cannot place would be dropped
+    silently. This is the guard that caught marine_nature mid-build."""
+    import render as r
+
+    from summarise import STREAMS
+
+    sectioned = [k for k, _ in r.SECTIONS]
+    for stream in STREAMS:
+        assert stream in sectioned, f"{stream} has no section in render.SECTIONS"
+        assert stream in r.STREAM_COLOURS, f"{stream} has no lane colour"
+    assert len(sectioned) == len(STREAMS), "render.SECTIONS has a section for a dead stream"
 
 
 if __name__ == "__main__":

@@ -27,12 +27,14 @@ BRAND = "Daily podcast summary"
 SECTIONS = [
     ("energy_desnz", "Energy / DESNZ"),
     ("crown_estate", "Crown Estate lane"),
+    ("marine_nature", "Marine nature"),
     ("treasury_fiscal", "Treasury / fiscal"),
     ("top_of_government", "Top of government"),
     ("parliamentary_colour", "Parliamentary colour"),
 ]
 
 ENERGY_STREAMS = {"energy_desnz", "crown_estate"}
+NATURE_STREAMS = {"marine_nature"}
 
 # Per-lane colour coding. Deliberately desaturated, print-like
 # tones: dark enough to read as body text on white, distinct at a glance on a
@@ -40,6 +42,7 @@ ENERGY_STREAMS = {"energy_desnz", "crown_estate"}
 STREAM_COLOURS = {
     "energy_desnz": "#2f6b4f",        # green
     "crown_estate": "#1f3a5f",        # navy
+    "marine_nature": "#116b7a",       # petrol — kept clear of the energy green
     "treasury_fiscal": "#9b2c2c",     # red
     "top_of_government": "#b1621a",   # orange
     "parliamentary_colour": "#6b3f6e",  # plum
@@ -317,7 +320,12 @@ def render_briefing(
         )
         for item, transcript in top:
             show = transcript["metadata"]["show"]
-            tag = "energy" if item["stream"] in ENERGY_STREAMS else "politics"
+            stream = item["stream"]
+            tag = (
+                "energy" if stream in ENERGY_STREAMS
+                else "nature" if stream in NATURE_STREAMS
+                else "politics"
+            )
             colour = STREAM_COLOURS.get(item["stream"], ACCENT)
             text_parts.append(f"- {item['why']} — {show} · ({tag})")
             html_parts.append(
@@ -446,7 +454,21 @@ def render_briefing(
         # Quotes are exact paragraphs reconstituted by code (in_print.py).
         text_parts += ["——— IN PRINT ———", ""]
         html_parts.append(_divider_html("In print", INPRINT_COLOUR))
-        for item in in_print:
+        # General first, then nature behind its own sub-label. The two come
+        # from separate selection calls with separate budgets, and mixing them
+        # would hide that: a reader skimming for nature should find it in one
+        # place rather than three items down an energy list.
+        ordered = ([x for x in in_print if x.get("lane") != "nature"]
+                   + [x for x in in_print if x.get("lane") == "nature"])
+        nature_label_done = False
+        for item in ordered:
+            if item.get("lane") == "nature" and not nature_label_done:
+                nature_label_done = True
+                text_parts += ["— Marine nature —", ""]
+                html_parts.append(
+                    f"<div style='{S_LABEL};color:{STREAM_COLOURS['marine_nature']};"
+                    f"margin:4px 0 12px'>Marine nature</div>"
+                )
             src = f"{item['source']} · “{item['title']}” · {item['published']}"
             text_parts.append(f"• {item['why']}")
             if item.get("quote"):

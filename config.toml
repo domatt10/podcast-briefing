@@ -8,7 +8,7 @@ model = "medium"   # production accuracy target; override with "base"/"small" fo
 # transcript so verbatim quotes stay faithful (spec §9). Extend freely.
 # Names matter as much as acronyms: a mis-heard minister corrupts the quote AND
 # the archive. Refresh after any reshuffle (2026-07: Burnham cabinet).
-glossary = "DESNZ, NESO, SSEP, Ofgem, CfD, contracts for difference, allocation round, AR7, AR8, GB Energy, Great British Energy, the Crown Estate, seabed leasing, Celtic Sea, offshore wind, floating wind, interconnectors, REMA, zonal pricing, net zero, Andy Burnham, Miatta Fahnbulleh, John Healey, Ed Miliband, Rachel Reeves, Shabana Mahmood, Pat McFadden, Darren Jones, Louise Haigh, Makerfield, Holyrood, John Swinney"
+glossary = "DESNZ, NESO, SSEP, Ofgem, CfD, contracts for difference, allocation round, AR7, AR8, GB Energy, Great British Energy, the Crown Estate, seabed leasing, Celtic Sea, offshore wind, floating wind, interconnectors, REMA, zonal pricing, net zero, Andy Burnham, Miatta Fahnbulleh, John Healey, Ed Miliband, Rachel Reeves, Shabana Mahmood, Pat McFadden, Darren Jones, Louise Haigh, Makerfield, Holyrood, John Swinney, Defra, Natural England, Natural Resources Wales, JNCC, Cefas, Marine Management Organisation, Environment Agency, marine protected area, MPA, Habitats Regulations, habitats regulations assessment, Marine Recovery Fund, marine net gain, biodiversity net gain, natural capital, blue carbon, nature recovery, saltmarsh, seagrass, oyster reef, benthic, denitrification, bottom trawling, Marine Delivery Routemap, ReMeMaRe, MaRePo, POSEIDON, ECOFLOW, Good Environmental Status, Blue Marine Foundation, Green Finance Institute, Caroline Price, Gus Jaspert"
 
 [gemini]
 # Strongest free-tier model, as config because Google rotates/retires these (spec §7).
@@ -89,6 +89,12 @@ max_per_source = 2     # stops the prolific party-political sites crowding out e
 # rule in in_print.hashes_to_mark — unselected research keeps its place in the
 # pool for this long instead of being discarded after one look.
 research_lookback_hours = 168
+# The nature pass has its OWN budget and runs as a separate selection call.
+# Sharing the six general slots would mean nature never places on a busy
+# political day, and crowds out politics on a quiet one.
+nature_lookback_hours = 168
+nature_max_items = 3
+nature_max_per_source = 2
 
 [[print_feeds]]
 name = "Carbon Brief"
@@ -123,7 +129,8 @@ kind = "research"
 # Every one of these was checked for RECENCY, not just for parsing. Rejected
 # after testing, so don't re-add without re-checking: UKERC (649 entries, every
 # title empty), Cornwall Insight (feed is staff bio pages and a "Form test
-# page"), Green Alliance (newest item 2023, and it's a press-clippings feed),
+# page"), Green Alliance's PRINT feed (newest item 2023, press clippings — their
+# podcast feed is current and is in [[feeds]]),
 # Policy Exchange (newest 2020), IFS/rss.xml (one entry, "Home", 2022).
 #
 # IFS, ECIU and IPPR have NO usable RSS at any common path. They are reachable
@@ -178,6 +185,76 @@ url = "https://theconversation.com/uk/politics/articles.atom"
 [[print_feeds]]
 name = "Comment is Freed"
 url = "https://samf.substack.com/feed"
+
+# --- Marine nature lane ------------------------------------------------------
+# kind = "nature" does three things: it routes these into a SEPARATE selection
+# call with its own budget (nature_max_items above), it gives them the long
+# 168h lookback, and it exempts them from one-shot seen-marking. Same reasoning
+# as "research": this lane gets three slots, so a Defra announcement that loses
+# out on a busy day deserves another look rather than being binned for good.
+#
+# Six feeds, all checked on 2026-11-21 for recency, volume AND whether the
+# body text is actually extractable — a feed whose articles won't scrape can
+# only ever be a headline, and this briefing quotes.
+#
+# Rejected after testing, so don't re-add without re-checking:
+#  - gov.uk all.atom for Defra / Natural England / MMO: high volume, but it is
+#    almost entirely licences and disease notices ("Hazel dormice: survey or
+#    research - level 2 licence", "Bird flu: latest situation"). That is the
+#    regulatory minutiae this lane is explicitly meant to skip. The
+#    news-and-communications.atom variant carries the announcements instead.
+#  - Natural England news (gov.uk): 2 items in 30 days and both were visitor-
+#    centre PR. Their BLOG is the one with the policy content.
+#  - JNCC: newest item 220 days old. Dormant.
+#  - Cefas: 3 items in 30 days, all fish-disease control orders. Too technical.
+#  - Environment Agency news: 15 items a week, mostly local permits and
+#    prosecutions. Volume without altitude.
+#  - Defra farming blog: active, but terrestrial scheme mechanics.
+#  - Oceana UK: newest item 43 days old.
+#  - BusinessGreen: the best-fitting trade feed on paper and 40 items a week,
+#    but the feed carries no body and the articles return HTTP errors to a
+#    scraper. Headlines only, at high volume. Revisit if a quotable path opens.
+
+# Defra announcements. ~7 items a week at the right altitude.
+[[print_feeds]]
+name = "Defra"
+url = "https://www.gov.uk/search/news-and-communications.atom?organisations%5B%5D=department-for-environment-food-rural-affairs"
+kind = "nature"
+
+# The marine regulator. Low volume, high relevance: corporate strategy,
+# licensing policy statements, MPA enforcement.
+[[print_feeds]]
+name = "Marine Management Organisation"
+url = "https://www.gov.uk/search/news-and-communications.atom?organisations%5B%5D=marine-management-organisation"
+kind = "nature"
+
+# The marine licensing / nature interface, written for developers. Full text
+# in the feed.
+[[print_feeds]]
+name = "MMO Marine Developments"
+url = "https://marinedevelopments.blog.gov.uk/feed/"
+kind = "nature"
+
+# Where Natural England's actual thinking shows up, as opposed to its press
+# office. Full text in the feed.
+[[print_feeds]]
+name = "Natural England blog"
+url = "https://naturalengland.blog.gov.uk/feed/"
+kind = "nature"
+
+# Marine conservation advocacy — MPAs, bottom trawling, Scotland. Campaigning,
+# but campaigning aimed squarely at the seabed, so it is pressure worth seeing.
+[[print_feeds]]
+name = "Blue Marine Foundation"
+url = "https://www.bluemarinefoundation.com/feed/"
+kind = "nature"
+
+# Nature capital markets: the investment-standards and blended-finance end.
+# Publishes roughly twice a month, which is why it needs the long lookback.
+[[print_feeds]]
+name = "Green Finance Institute"
+url = "https://www.greenfinanceinstitute.com/feed/"
+kind = "nature"
 
 [politico]
 gmail_label = "Politico"   # the Gmail label the filter applies; read over IMAP
@@ -402,6 +479,28 @@ category = "energy"
 # industrial strategy, route to market. Roughly monthly and sometimes less, so
 # it costs very little; 13 episodes at the time of adding.
 # Checked 2026-11-18: current (latest 2 Nov), audio enclosures present.
+# --- Marine nature lane ------------------------------------------------------
+# No UK podcast covers marine nature policy specifically; these two cover UK
+# nature and environment policy generally and the lane's filter does the
+# narrowing. Eleven were checked (2026-11-21): the rest were US-based,
+# terrestrial-only, natural history rather than policy, or dormant.
+# Podcast feeds are NOT tagged by subject — nothing reads such a field. Every
+# episode goes through the same summariser and the marine_nature stream rules
+# in profile.md decide what survives.
+
+# UK environmental think tank. Fortnightly, ~25 min, squarely political:
+# "Climate risk: are public bodies prepared?", "What will Andy Burnham's
+# government mean for UK environmental policy".
+[[feeds]]
+name = "The Green Alliance Podcast"
+url = "https://feeds.simplecast.com/HGcMqc0w"
+
+# Weekly, ~25 min, plus a monthly news roundup. "The OEP - Marking the
+# Government's Environment Homework", "Economy Vs Environment - Can Both Win?"
+[[feeds]]
+name = "Planet Possible"
+url = "https://feeds.simplecast.com/aevZ5TBx"
+
 [[feeds]]
 name = "The ReVolting Podcast"
 url = "https://feeds.buzzsprout.com/2542240.rss"

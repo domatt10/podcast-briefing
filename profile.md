@@ -8,7 +8,8 @@ signal costs them the thing this exists for.
 ## The reader
 
 - **Role:** External Affairs & Policy Manager, marine. Primary focus offshore
-  wind; secondary tidal, nature and interconnectors.
+  wind; **marine nature is now a standing part of the job**, alongside tidal
+  and interconnectors.
 - **Organisation:** The Crown Estate, marine team.
 - **Vantage point — landowner and enabler, not developer or think tank.** The
   seabed leasing framework, the commercial conditions developers build under,
@@ -40,6 +41,12 @@ The briefing is read with two sets of conversations in mind.
   do X over Y"). Name post-holders from `baseline.md`, never from memory — this
   file deliberately refers to roles rather than individuals so that it does not
   go stale.
+- **Marine nature colleagues.** Newer ground, and the relationship is the
+  other way round: here he is a **generalist advising specialists**. They hold
+  the technical detail. What he supplies is the political read — where
+  government is going on nature, who is pushing, what is about to land. So the
+  test for a nature item is not how expert it is, it is whether a
+  well-informed generalist would be caught out not knowing it.
 - **Senior leadership and external affairs colleagues**, who need the broader
   political weather: where pressure is building on government, and which way
   things are moving. External affairs work depends on fluency in the wider
@@ -58,6 +65,14 @@ The briefing is read with two sets of conversations in mind.
     CCS, oil and gas — together with the grid and system questions around them:
     NESO's Strategic Spatial Energy Plan, connections reform, and the
     zonal-versus-national pricing debate.
+  - *Core, but judged differently:* **marine nature** — marine protected areas,
+    the Habitats Regulations and environmental compensation, the Marine
+    Recovery Fund, marine net gain, the Marine Delivery Routemap, and the
+    emerging nature capital markets. Wide on subject, narrow on what counts as
+    a development: see the marine nature lane rules in the prompt, which apply
+    a consequence test rather than the altitude test above. Terrestrial nature
+    is in only where it carries a marine read-across or signals government's
+    general posture toward nature.
   - *Outer ring, informed level:* hydrogen, onshore wind and similar — in
     scope when landscape-shaping or high altitude.
   - *Geographic:* The Crown Estate's seabed remit covers England, Wales and

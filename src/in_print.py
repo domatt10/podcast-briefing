@@ -68,6 +68,49 @@ Return JSON only:
 {listing}
 """
 
+NATURE_SELECT_PROMPT = """You pick items for the MARINE NATURE part of a private daily briefing. The reader:
+
+{profile}
+
+# What he already knows — do not pick pieces that just report these
+
+{baseline}
+
+# The bar for this section
+
+He works on offshore wind at The Crown Estate and now advises colleagues on marine nature. He is a GENERALIST ADVISING SPECIALISTS: he needs enough to follow the debate and notice when something has changed, never enough to replicate an expert's work.
+
+For every candidate ask: **would a specialist colleague expect him to already know this?** If only a specialist would track it, it is OUT. Zero picks is a normal and common answer.
+
+Pick an item if it passes ANY ONE of these:
+
+1. POLITICAL SIGNALLING ON NATURE — Defra's direction of travel, the nature-versus-growth tension, how government weighs nature against energy, housing and infrastructure, shifts in ministerial language or priority, money switched on or off.
+
+2. MARINE NATURE POLICY AND REGULATION — wide on topic: Marine Protected Areas, Habitats Regulations and environmental compensation, the Marine Recovery Fund, Marine Net Gain, bottom trawling, 30x30, Good Environmental Status, and the statutory nature conservation bodies (Natural England, Natural Resources Wales, JNCC) including their capacity, reform or abolition. NARROW on what counts: a decision, a reversal, a direction of travel, a fight.
+
+3. NATURE CAPITAL MARKETS — judged on whether it MOVES THE MARKET, not on altitude. A standard or code landing at all and what it unlocks; a first-of-kind transaction; a new fund or vehicle; a serious buyer arriving or leaving; a credible failure.
+
+# Out, specifically
+
+- THE CROWN ESTATE'S OWN ANNOUNCEMENTS. He sees those internally first. But a third party REACTING TO or DISCUSSING Crown Estate nature work IS in — what others say about his organisation is a signal, what it says about itself is not.
+- Individual restoration projects (an oyster reef, a seagrass trial) unless they set a precedent, carry a genuine first, or are being used to make a wider argument.
+- Terrestrial nature policy, UNLESS there is a marine read-across (Biodiversity Net Gain and Local Nature Recovery Strategies are the precedents marine mechanisms get built from) or it signals government's general posture toward nature.
+- Species and conservation interest with no policy, market or commercial bearing. State-of-nature reporting and wildlife features are not this section.
+- The mechanics of things: how a methodology works, consultation procedure, practitioner debate about measurement, incremental code revisions. THAT a code exists is news; its version history is not.
+- Press-release throat-clearing, appointments, events, award announcements.
+
+# Rules
+- Group duplicate coverage of one story into a single pick (all its ids, best-sourced first).
+- Up to {max_items} picks, ranked most significant first. Fewer is better than padding. Zero is normal.
+- Never invent facts not present in the headline or standfirst.
+
+Return JSON only:
+{{"picks": [{{"ids": [3], "why": "one plain-English line, spoken register — what it says and why he should care"}}]}}
+
+# Candidates
+{listing}
+"""
+
 QUOTE_PROMPT = """From the numbered paragraphs below, choose the passage — 1 to 4 CONSECUTIVE paragraphs — that best delivers this signal to the reader: {why}
 
 If this is research output, take the passage that states the finding most precisely — the number, the conclusion, the mechanism — not the framing or the call to action around it.
@@ -140,6 +183,7 @@ def fetch_candidates(cfg: dict, state: dict) -> list[dict]:
     windows = {
         "commentary": timedelta(hours=cfg["in_print"]["lookback_hours"]),
         "research": timedelta(hours=cfg["in_print"].get("research_lookback_hours", 168)),
+        "nature": timedelta(hours=cfg["in_print"].get("nature_lookback_hours", 168)),
     }
     seen = state.setdefault("print_seen", {})
     items = []
@@ -151,9 +195,15 @@ def fetch_candidates(cfg: dict, state: dict) -> list[dict]:
             fresh = 0
             for e in parsed.entries:
                 link = e.get("link", "")
-                if not link or not e.get("published_parsed"):
+                # gov.uk atom feeds carry <updated> and no <published>. Without
+                # this fallback they parse perfectly and yield zero items every
+                # time - a feed that looks healthy in the log and silently
+                # delivers nothing. A re-issued page still surfaces only once,
+                # because the dedupe hash below is on the URL.
+                stamp = e.get("published_parsed") or e.get("updated_parsed")
+                if not link or not stamp:
                     continue
-                when = datetime(*e.published_parsed[:6], tzinfo=timezone.utc)
+                when = datetime(*stamp[:6], tzinfo=timezone.utc)
                 if when < cutoff:
                     continue
                 h = hashlib.sha256(link.encode()).hexdigest()[:12]
@@ -222,8 +272,12 @@ def hashes_to_mark(candidates: list[dict], delivered: list[str]) -> list[str]:
     the pool for its longer window, because a significant report that loses out
     to a busy news day deserves another look rather than being discarded for
     good — which is what used to happen to everything.
+
+    Nature works the same way, for the same reason and one more: the lane has
+    only three slots, so crowding out is the normal case rather than the
+    exception.
     """
-    marked = [c["url_hash"] for c in candidates if c.get("kind") != "research"]
+    marked = [c["url_hash"] for c in candidates if c.get("kind") not in ("research", "nature")]
     marked += [h for h in delivered if h not in marked]
     return marked
 
@@ -242,42 +296,29 @@ def _ensure_body(item: dict) -> str:
     return item.get("body", "")
 
 
-def fetch_in_print(cfg: dict, archive: Path, state: dict) -> tuple[list[dict], list[str]]:
-    """Returns (render-ready items, url_hashes of ALL candidates considered).
-    The caller marks hashes seen only after a successful send, so held days
-    re-consider the same stories tomorrow."""
-    candidates = fetch_candidates(cfg, state)
-    if not candidates:
-        return [], []
-
-    models = model_ladder(cfg["gemini"])
-
-    profile = (ROOT / "profile.md").read_text(encoding="utf-8")
-    listing = "\n".join(
+def _listing(pool: list[dict]) -> str:
+    return "\n".join(
         f"[{i}] {c['title']} | {c['source']} | {c['published']}"
         f"{' | RESEARCH' if c.get('kind') == 'research' else ''} | {c['summary']}"
-        for i, c in enumerate(candidates)
-    )
-    data = _ask(
-        models,
-        SELECT_PROMPT.format(
-            profile=profile,
-            baseline=_baseline(),
-            max_items=cfg["in_print"]["max_items"],
-            listing=listing,
-        ),
+        for i, c in enumerate(pool)
     )
 
+
+def _realise(data, pool, cfg, archive, models, max_items, cap, lane):
+    """Turn one selection call's picks into render-ready items.
+
+    Shared by the general and nature passes so the two cannot drift apart in
+    quote handling, source capping or archiving.
+    """
     results, per_source = [], {}
     for pick in data.get("picks", []):
-        if len(results) >= cfg["in_print"]["max_items"]:
+        if len(results) >= max_items:
             break
         ids = pick.get("ids")
-        if not (isinstance(ids, list) and ids and all(isinstance(i, int) and 0 <= i < len(candidates) for i in ids)):
+        if not (isinstance(ids, list) and ids and all(isinstance(i, int) and 0 <= i < len(pool) for i in ids)):
             continue
-        item = candidates[ids[0]]
+        item = pool[ids[0]]
         # Hard backstop on the prompt's spread rule: no outlet takes over.
-        cap = cfg["in_print"].get("max_per_source", 2)
         if per_source.get(item["source"], 0) >= cap:
             print(f"[in-print] skipping extra item from {item['source']} (source cap {cap})")
             continue
@@ -340,7 +381,52 @@ def fetch_in_print(cfg: dict, archive: Path, state: dict) -> tuple[list[dict], l
                 "url": item["url"],
                 "published": item["published"],
                 "url_hash": item["url_hash"],  # so a delivered research item is marked seen
+                "lane": lane,                  # "nature" items render under their own label
             }
         )
-    print(f"[in-print] {len(results)} item(s) selected from {len(candidates)} candidates")
+    return results
+
+
+def fetch_in_print(cfg: dict, archive: Path, state: dict) -> tuple[list[dict], list[str]]:
+    """Returns (render-ready items, url_hashes of ALL candidates considered).
+    The caller marks hashes seen only after a successful send, so held days
+    re-consider the same stories tomorrow.
+
+    TWO SELECTION PASSES, each with its own budget. Nature sources joined a
+    section that already had six slots and fourteen feeds. A single pass would
+    have made nature and politics compete for the same slots: on a busy
+    political day nature would never place, and on a quiet one it would crowd
+    out the politics. One extra model call a day is cheap against a ladder
+    carrying ~100, and separate budgets mean a quiet nature week simply yields
+    less rather than padding itself to fill slots.
+    """
+    candidates = fetch_candidates(cfg, state)
+    if not candidates:
+        return [], []
+
+    models = model_ladder(cfg["gemini"])
+    profile = (ROOT / "profile.md").read_text(encoding="utf-8")
+    baseline = _baseline()
+    c = cfg["in_print"]
+
+    nature_pool = [x for x in candidates if x.get("kind") == "nature"]
+    general_pool = [x for x in candidates if x.get("kind") != "nature"]
+
+    results = []
+    if general_pool:
+        data = _ask(models, SELECT_PROMPT.format(
+            profile=profile, baseline=baseline,
+            max_items=c["max_items"], listing=_listing(general_pool)))
+        results += _realise(data, general_pool, cfg, archive, models,
+                            c["max_items"], c.get("max_per_source", 2), "general")
+    if nature_pool:
+        data = _ask(models, NATURE_SELECT_PROMPT.format(
+            profile=profile, baseline=baseline,
+            max_items=c.get("nature_max_items", 3), listing=_listing(nature_pool)))
+        results += _realise(data, nature_pool, cfg, archive, models,
+                            c.get("nature_max_items", 3),
+                            c.get("nature_max_per_source", 2), "nature")
+
+    print(f"[in-print] {len(results)} item(s) selected from "
+          f"{len(general_pool)} general / {len(nature_pool)} nature candidates")
     return results, hashes_to_mark(candidates, [r["url_hash"] for r in results])

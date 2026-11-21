@@ -30,6 +30,7 @@ BASELINE_STALE_DAYS = 45  # nudge to re-verify baseline.md after a reshuffle etc
 STREAMS = (
     "energy_desnz",
     "crown_estate",
+    "marine_nature",
     "treasury_fiscal",
     "top_of_government",
     "parliamentary_colour",
@@ -79,6 +80,7 @@ Signals and speculation, with the reasoning given for any prediction: rumours, m
 
 - energy_desnz — energy policy, DESNZ, ministers, clean power
 - crown_estate — Crown Estate, seabed leasing, NESO, SSEP, grid/connections, Celtic Sea
+- marine_nature — nature policy and nature capital markets; see the MARINE NATURE LANE below
 - treasury_fiscal — Treasury/HMT mood music; deliberately a LOW bar, need not be energy-linked
 - top_of_government — PM positioning, No 10, reshuffles, machinery of government
 - parliamentary_colour — MPs, rebellions, opposition chatter; soft layer only
@@ -94,6 +96,27 @@ But lower is not zero. The test that replaces altitude here is: **does it bear o
 OUT, even on his core topics: industry operational practice (training standards, HSE, crew transfer, vessel logistics), technical methodology, corporate and product announcements, conference throat-clearing, and general "the transition is important" commentary. An energy-industry podcast will be full of this — it is the industry talking shop, not signal. A specialist episode with no policy or commercial bearing is a legitimately EMPTY episode; say so by returning no items.
 
 The altitude test bites hardest OUTSIDE the core ring: for Westminster process, party management and non-energy policy, keep requiring that it crosses a minister's desk or changes a decision-maker's mind.
+
+# THE MARINE NATURE LANE — a different bar again
+
+Nature is a sector in its own right for this reader, not a constraint on other sectors. He now advises colleagues working on marine nature, so he needs to follow the same debates they do.
+
+THE BAR HERE IS NOT ALTITUDE, IT IS CONSEQUENCE. He is a generalist advising specialists who own the detail. He needs enough to follow the debate and to notice when something has changed, never enough to replicate their work. For every candidate ask: **would a specialist colleague expect him to already know this?** If only a specialist would track it, it is OUT.
+
+Assign to "marine_nature" if an item passes ANY ONE of these:
+
+1. POLITICAL SIGNALLING ON NATURE — judged at ordinary ministerial altitude. Defra's direction of travel, the nature-versus-growth tension, how government weighs nature against energy, housing and infrastructure, shifts in ministerial language or priority, money switched on or off.
+
+2. MARINE NATURE POLICY AND REGULATION — wide on topic: Marine Protected Areas, the Habitats Regulations and environmental compensation, the Marine Recovery Fund, Marine Net Gain, bottom trawling, 30x30, Good Environmental Status, and the statutory nature conservation bodies (Natural England, Natural Resources Wales, JNCC) including their capacity, reform or abolition. NARROW on what counts: a decision, a reversal, a direction of travel, a fight.
+
+3. NATURE CAPITAL MARKETS — judged on whether it MOVES THE MARKET, not on altitude. A standard or code landing at all and what it unlocks; a first-of-kind transaction; a new fund or vehicle; a serious buyer arriving or leaving; a credible failure. Blue carbon, payments for ecosystem services, marine natural capital.
+
+OUT of this lane, specifically:
+- The Crown Estate's OWN announcements — he sees those internally first. But third parties REACTING TO or DISCUSSING Crown Estate nature work IS in. What others say about us is a signal; what we say about ourselves is not.
+- Individual restoration projects (an oyster reef, a seagrass trial) unless they set a precedent, carry a genuine first, or are being used to make a wider argument.
+- Terrestrial nature policy, UNLESS there is a marine read-across (Biodiversity Net Gain and Local Nature Recovery Strategies are the precedents marine mechanisms get built from) or it signals government's general posture toward nature.
+- Species and conservation interest with no policy, market or commercial bearing. A programme about how the birds are doing is not this lane.
+- The mechanics of things: how a methodology works, consultation procedure, practitioner debate about measurement, incremental code revisions. THAT a code exists is news; its version history is not.
 
 # Tiering — a hierarchy, not a rating. Default to FRAGMENT.
 
@@ -147,7 +170,7 @@ Choose the passage where the point is made most CLEANLY. These are unscripted co
   "items": [
     {{
       "tier": "significant",            // see tiering rule above: "significant" = the few items deserving a full verbatim passage; "fragment" = everything else (a flag plus a short verbatim snippet)
-      "stream": "energy_desnz",         // one of the five streams above
+      "stream": "energy_desnz",         // one of the six streams above
       "why": "one plain-English line (see style rule): why this matters to this reader; include the stated basis of any prediction",
       "segment_ids": [41, 42, 43],
       "anchor": "the first six to ten words of segment 41, copied exactly",
@@ -289,7 +312,7 @@ def repair_anchors(items: list[dict], segments: list[dict]) -> dict:
 
 MAX_SIGNIFICANT_PER_EPISODE = 3
 FRAGMENT_SEGMENTS = 3
-CORE_STREAMS = ("crown_estate", "energy_desnz")
+CORE_STREAMS = ("crown_estate", "energy_desnz", "marine_nature")
 
 
 def _enforce_tier_budget(items: list[dict]) -> list[dict]:
