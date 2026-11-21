@@ -191,6 +191,31 @@ kind = "research"
 # quote, flag and link only. Worth a slot anyway — four weeks from a Budget,
 # "IFS finds the triple lock saving won't fund social care" earns its line
 # without a quote attached.
+# Labour-side commentary, replacing LabourList, whose feed is EMPTY at source
+# (left in place above in case it comes back - the footer will say if it does).
+# Both checked 2026-11-21: full text in the feed, so no scrape needed.
+
+# The closest thing to what LabourList was for: Labour politics and policy
+# argument. Low volume, and squarely on-topic - recent items include "A Budget
+# without imagination? Look again at energy" and Milburn's New Deal review.
+# It also posts the occasional job ad, which the selector bins.
+[[print_feeds]]
+name = "Progressive Britain"
+url = "https://progressivebritain.org/feed/"
+kind = "research"
+
+# NOTE WHAT THIS ACTUALLY IS before judging its yield: it is the Fabian Review
+# magazine, not Labour party news - long-form essays on social policy, housing,
+# climate and US politics, under opaque one-or-two-word titles ("Turning
+# Point", "Living room"). The summaries carry the substance, which is what the
+# selector reads, so it can judge them; but expect most of it to be rejected
+# and expect the hits to be occasional. Added at the reader's request on the
+# strength of volume and recency; review whether it earns its place.
+[[print_feeds]]
+name = "Fabian Society"
+url = "https://fabians.org.uk/feed/"
+kind = "research"
+
 [[print_feeds]]
 name = "IFS"
 url = "https://news.google.com/rss/search?q=site%3Aifs.org.uk&hl=en-GB&gl=GB&ceid=GB:en"
